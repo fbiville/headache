@@ -1,0 +1,3 @@
+Copyright {{.Year}} {{.Owner}}
+
+Some fictional license
