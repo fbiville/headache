@@ -15,8 +15,28 @@ func Insert(config *configuration) {
 		if err != nil {
 			panic(err)
 		}
-		insertInMatchedFiles(config, matches)
+		insertInMatchedFiles(config, exclude(matches, config.Excludes))
 	}
+}
+
+func exclude(strings []string, exclusionPatterns []string) []string {
+	result := strings[:0]
+	for _, str := range strings {
+		if !matches(str, exclusionPatterns) {
+			result = append(result, str)
+		}
+	}
+	return result
+}
+
+func matches(str string, exclusionPatterns []string) bool {
+	for _, exclusionPattern := range exclusionPatterns {
+		matched, _ := filepath.Match(exclusionPattern, str)
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 func insertInMatchedFiles(config *configuration, files []string) {

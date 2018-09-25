@@ -11,12 +11,14 @@ import (
 type configuration struct {
 	HeaderContents string
 	Includes       []string
+	Excludes       []string
 	writer         io.Writer
 }
 
 func NewConfiguration(headerFile string,
 	style CommentStyle,
 	includes []string,
+	excludes []string,
 	data map[string]string) (*configuration, error) {
 	contents, err := parseTemplate(headerFile, data, style)
 	if err != nil {
@@ -25,6 +27,7 @@ func NewConfiguration(headerFile string,
 	return &configuration{
 		HeaderContents: contents,
 		Includes:       includes,
+		Excludes:       excludes,
 	}, nil
 }
 

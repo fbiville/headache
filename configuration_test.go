@@ -13,6 +13,7 @@ func TestConfigurationInitWithLineCommentStyle(t *testing.T) {
 		"fixtures/license.txt",
 		SlashSlash,
 		[]string{"*.txt"},
+		[]string{},
 		map[string]string{
 			"Year":  "2018",
 			"Owner": "ACME Labs",
@@ -32,6 +33,7 @@ func TestConfigurationInitWithBlockCommentStyle(t *testing.T) {
 		"fixtures/license.txt",
 		SlashStar,
 		[]string{"*.txt"},
+		[]string{},
 		map[string]string{
 			"Year":  "2018",
 			"Owner": "ACME Labs",
