@@ -65,3 +65,23 @@ func TestHeaderWriteWithExcludes(t *testing.T) {
 bonjour
 le world`))
 }
+
+func TestHeaderWithRecursiveGlobs(t *testing.T) {
+	I := NewGomegaWithT(t)
+	stringBuilder := strings.Builder{}
+	writer := bufio.NewWriter(&stringBuilder)
+	configuration := configuration{
+		HeaderContents: `// some header`,
+		Includes: []string{"fixtures/**/inception.txt"},
+		Excludes: []string{"fixtures/**/ignored.txt"},
+		writer:   writer,
+	}
+
+	InsertHeader(&configuration)
+	writer.Flush()
+
+	I.Expect(stringBuilder.String()).To(Equal(`// some header
+
+a dream
+within a dream`))
+}
