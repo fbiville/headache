@@ -1,17 +1,17 @@
-package header
+package main
 
 import (
 	"bufio"
 	. "bytes"
 	"fmt"
+	"github.com/mattn/go-zglob"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 )
 
-func Insert(config *configuration) {
+func InsertHeader(config *configuration) {
 	for _, includePattern := range config.Includes {
-		matches, err := filepath.Glob(includePattern)
+		matches, err := zglob.Glob(includePattern)
 		if err != nil {
 			panic(err)
 		}
@@ -31,7 +31,7 @@ func exclude(strings []string, exclusionPatterns []string) []string {
 
 func matches(str string, exclusionPatterns []string) bool {
 	for _, exclusionPattern := range exclusionPatterns {
-		matched, _ := filepath.Match(exclusionPattern, str)
+		matched, _ := zglob.Match(exclusionPattern, str)
 		if matched {
 			return true
 		}
@@ -50,18 +50,26 @@ func insertInMatchedFiles(config *configuration, files []string) {
 			continue
 		}
 
-		newContents := append([]byte(fmt.Sprintf("%s%s", config.HeaderContents, "\n")), bytes...)
-		var writer = config.writer
-		if writer == nil {
-			openFile, err := os.Open(file)
-			if err != nil {
-				panic(err)
-			}
-			defer openFile.Close()
-			writer = bufio.NewWriter(openFile)
+		newContents := append([]byte(fmt.Sprintf("%s%s", config.HeaderContents, "\n\n")), bytes...)
+		writeToFile(config, file, newContents)
+	}
+}
+
+func writeToFile(config *configuration, file string, newContents []byte) {
+	var writer = config.writer
+	if writer == nil {
+		openFile, err := os.OpenFile(file, os.O_WRONLY, os.ModeAppend)
+		if err != nil {
+			panic(err)
 		}
-
-		writer.Write(newContents)
-
+		_, err = openFile.Write(newContents)
+		openFile.Close()
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		bufferedWriter := bufio.NewWriter(writer)
+		bufferedWriter.Write(newContents)
+		bufferedWriter.Flush()
 	}
 }

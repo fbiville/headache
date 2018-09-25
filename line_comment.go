@@ -1,4 +1,4 @@
-package header
+package main
 
 import (
 	"fmt"
@@ -11,6 +11,17 @@ const (
 	SlashSlash
 )
 
+func newCommentStyle(str string) CommentStyle {
+	switch str {
+	case "SlashStar":
+		return SlashStar
+	case "SlashSlash":
+		return SlashSlash
+	default:
+		panic(unknownStyleError())
+	}
+}
+
 func (style *CommentStyle) opening() bool {
 	return *style == SlashStar
 }
@@ -22,7 +33,7 @@ func (style *CommentStyle) closing() bool {
 func (style *CommentStyle) open() string {
 	switch *style {
 	case SlashStar:
-		return "/* "
+		return "/*"
 	default:
 		panic(unknownSurroundingCommentError())
 	}
@@ -38,21 +49,24 @@ func (style *CommentStyle) close() string {
 }
 
 func (style *CommentStyle) apply(line string) string {
-	return fmt.Sprintf("%s%s", style.commentSymbol(), line)
+	if line == "" {
+		return style.commentSymbol()
+	}
+	return fmt.Sprintf("%s %s", style.commentSymbol(), line)
 }
 
 func (style *CommentStyle) commentSymbol() string {
 	switch *style {
 	case SlashSlash:
-		return "// "
+		return "//"
 	case SlashStar:
-		return " * "
+		return " *"
 	default:
-		panic(unknownCommentError())
+		panic(unknownStyleError())
 	}
 }
 
-func unknownCommentError() string {
+func unknownStyleError() string {
 	return "Unexpected comment style, must be one of: SlashSlash, SlashStar"
 }
 

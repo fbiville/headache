@@ -1,4 +1,4 @@
-package header
+package main
 
 import (
 	"bufio"
@@ -8,6 +8,14 @@ import (
 	"strings"
 )
 
+type Configuration struct {
+	HeaderFile   string            `json:"headerFile"`
+	CommentStyle string            `json:"style"`
+	Includes     []string          `json:"includes"`
+	Excludes     []string          `json:"excludes"`
+	TemplateData map[string]string `json:"data"`
+}
+
 type configuration struct {
 	HeaderContents string
 	Includes       []string
@@ -15,19 +23,15 @@ type configuration struct {
 	writer         io.Writer
 }
 
-func NewConfiguration(headerFile string,
-	style CommentStyle,
-	includes []string,
-	excludes []string,
-	data map[string]string) (*configuration, error) {
-	contents, err := parseTemplate(headerFile, data, style)
+func ParseConfiguration(config Configuration) (*configuration, error) {
+	contents, err := parseTemplate(config.HeaderFile, config.TemplateData, newCommentStyle(config.CommentStyle))
 	if err != nil {
 		return nil, err
 	}
 	return &configuration{
 		HeaderContents: contents,
-		Includes:       includes,
-		Excludes:       excludes,
+		Includes:       config.Includes,
+		Excludes:       config.Excludes,
 	}, nil
 }
 

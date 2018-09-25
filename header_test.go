@@ -1,4 +1,4 @@
-package header
+package main
 
 import (
 	"bufio"
@@ -18,11 +18,12 @@ func TestHeaderWrite(t *testing.T) {
 		writer:   writer,
 	}
 
-	Insert(&configuration)
+	InsertHeader(&configuration)
 	writer.Flush()
 
 	I.Expect(stringBuilder.String()).To(Equal(`// some multi-line header
 // with some text
+
 hello
 world`))
 }
@@ -38,7 +39,7 @@ func TestHeaderDoesNotWriteTwice(t *testing.T) {
 		writer:   writer,
 	}
 
-	Insert(&configuration)
+	InsertHeader(&configuration)
 	writer.Flush()
 
 	I.Expect(stringBuilder.String()).To(Equal(``))
@@ -56,10 +57,11 @@ func TestHeaderWriteWithExcludes(t *testing.T) {
 		writer:   writer,
 	}
 
-	Insert(&configuration)
+	InsertHeader(&configuration)
 	writer.Flush()
 
 	I.Expect(stringBuilder.String()).To(Equal(`// some header
+
 bonjour
 le world`))
 }
