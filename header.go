@@ -6,6 +6,7 @@ import (
 	"github.com/mattn/go-zglob"
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 func InsertHeader(config *configuration) {
@@ -48,7 +49,7 @@ func insertInMatchedFiles(config *configuration, files []string) {
 		fileContents := string(bytes)
 		matchLocation := config.HeaderRegex.FindStringIndex(fileContents)
 		if matchLocation != nil {
-			fileContents = fileContents[:matchLocation[0]] + fileContents[matchLocation[1]:]
+			fileContents = strings.TrimLeft(fileContents[:matchLocation[0]] + fileContents[matchLocation[1]:], "\n")
 		}
 
 		newContents := append([]byte(fmt.Sprintf("%s%s", config.HeaderContents, "\n\n")), []byte(fileContents)...)
@@ -59,7 +60,7 @@ func insertInMatchedFiles(config *configuration, files []string) {
 func writeToFile(config *configuration, file string, newContents []byte) {
 	var writer = config.writer
 	if writer == nil {
-		openFile, err := os.OpenFile(file, os.O_WRONLY, os.ModeAppend)
+		openFile, err := os.OpenFile(file, os.O_WRONLY | os.O_TRUNC, os.ModeAppend)
 		if err != nil {
 			panic(err)
 		}
