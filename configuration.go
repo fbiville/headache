@@ -2,9 +2,11 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	tpl "html/template"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -18,6 +20,7 @@ type Configuration struct {
 
 type configuration struct {
 	HeaderContents string
+	HeaderRegex    *regexp.Regexp
 	Includes       []string
 	Excludes       []string
 	writer         io.Writer
@@ -29,30 +32,47 @@ func ParseConfiguration(config Configuration) (*configuration, error) {
 		return nil, err
 	}
 	return &configuration{
-		HeaderContents: contents,
+		HeaderContents: contents.actualContent,
+		HeaderRegex:    contents.detectionRegex,
 		Includes:       config.Includes,
 		Excludes:       config.Excludes,
 	}, nil
 }
 
-func parseTemplate(file string, data map[string]string, style CommentStyle) (string, error) {
-	lines, err := readStyledLines(file, style)
+type templateResult struct {
+	actualContent  string
+	detectionRegex *regexp.Regexp
+}
+
+func parseTemplate(file string, data map[string]string, style CommentStyle) (*templateResult, error) {
+	rawLines, err := readLines(file)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	template, err := tpl.New("header").Parse(strings.Join(lines, "\n"))
+	commentedLines, err := applyComments(rawLines, style)
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+	template, err := tpl.New("header").Parse(strings.Join(commentedLines, "\n"))
+	if err != nil {
+		return nil, err
 	}
 	builder := &strings.Builder{}
 	err = template.Execute(builder, data)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return builder.String(), nil
+	regex, err := computeDetectionRegex(rawLines, data)
+	if err != nil {
+		return nil, err
+	}
+	return &templateResult{
+		actualContent:  builder.String(),
+		detectionRegex: regexp.MustCompile(regex),
+	}, nil
 }
 
-func readStyledLines(file string, style CommentStyle) ([]string, error) {
+func readLines(file string) ([]string, error) {
 	openFile, err := os.Open(file)
 	if err != nil {
 		return nil, err
@@ -61,14 +81,58 @@ func readStyledLines(file string, style CommentStyle) ([]string, error) {
 
 	lines := make([]string, 0)
 	scanner := bufio.NewScanner(openFile)
-	if style.opening() {
-		lines = append(lines, style.open())
-	}
 	for scanner.Scan() {
-		lines = append(lines, style.apply(scanner.Text()))
-	}
-	if style.closing() {
-		lines = append(lines, style.close())
+		lines = append(lines, scanner.Text())
 	}
 	return lines, nil
+}
+
+func applyComments(lines []string, style CommentStyle) ([]string, error) {
+	result := make([]string, 0)
+	if style.opening() {
+		result = append(result, style.open())
+	}
+	for _, line := range lines {
+		result = append(result, style.apply(line))
+	}
+	if style.closing() {
+		result = append(result, style.close())
+	}
+	return result, nil
+}
+
+func computeDetectionRegex(lines []string, data map[string]string) (string, error) {
+	regex := regexLines(lines)
+	return injectDataRegex(strings.Join(regex, ""), data)
+}
+
+func injectDataRegex(result string, data map[string]string) (string, error) {
+	template, err := tpl.New("header-regex").Parse(result)
+	if err != nil {
+		return "", err
+	}
+	builder := &strings.Builder{}
+	err = template.Execute(builder, regexValues(&data))
+	if err != nil {
+		return "", err
+	}
+	return builder.String(), nil
+}
+
+func regexLines(lines []string) []string {
+	result := make([]string, 0)
+	result = append(result, "(?m)")
+	result = append(result, "(?:\\/\\*\n)?")
+	for _, line := range lines {
+		result = append(result, fmt.Sprintf("%s\\Q%s\\E\n?", "(?:\\/{2}| \\*) ?", line))
+	}
+	result = append(result, "(?: \\*\\/)?")
+	return result
+}
+
+func regexValues(data *map[string]string) *map[string]string {
+	for k := range *data {
+		(*data)[k] = "\\E.*\\Q"
+	}
+	return data
 }

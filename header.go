@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	. "bytes"
 	"fmt"
 	"github.com/mattn/go-zglob"
 	"io/ioutil"
@@ -46,11 +45,13 @@ func insertInMatchedFiles(config *configuration, files []string) {
 			panic(err)
 		}
 
-		if HasPrefix(bytes, []byte(config.HeaderContents)) {
-			continue
+		fileContents := string(bytes)
+		matchLocation := config.HeaderRegex.FindStringIndex(fileContents)
+		if matchLocation != nil {
+			fileContents = fileContents[:matchLocation[0]] + fileContents[matchLocation[1]:]
 		}
 
-		newContents := append([]byte(fmt.Sprintf("%s%s", config.HeaderContents, "\n\n")), bytes...)
+		newContents := append([]byte(fmt.Sprintf("%s%s", config.HeaderContents, "\n\n")), []byte(fileContents)...)
 		writeToFile(config, file, newContents)
 	}
 }
