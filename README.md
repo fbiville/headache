@@ -40,11 +40,11 @@ limitations under the License.
 
 Setting            | Type                    | Definition                                             |
 | ---------------- |:----------------------: | -----------------------------------------------------: |
-| `headerFile`     | string                  | Path to the parameterized license header               |
+| `headerFile`     | string                  | Path to the parameterized license header. Parameters are referenced with the following syntax: {{.PARAMETER-NAME}}               |
 | `style`          | string                  | One of: SlashStar (`/* ... */`), SlashSlash (`// ...`) |
 | `includes`       | array of strings        | File globs to include (`*` and `**` are supported)     |
 | `excludes`       | array of strings        | File globs to exclude (`*` and `**` are supported)     |
-| `data`           | map of string to string | Key-value pair, matching the parameters in headerFile.<br>Please note that `{{.Year}}` is a reserved parameter and will automatically be computed based on the files versioning information.  |
+| `data`           | map of string to string | Key-value pairs, matching the parameters used in `headerFile`.<br>Please note that `{{.Year}}` is a reserved parameter and will automatically be computed based on the files versioning information.  |
 | `vcs`            | string                  | Versioning system, only `"git"` is supported for now and is the default value.  |
 | `vcsRemote`      | string                  | Remote of the current branch, defaults to `"origin"`.  |
 | `vcsBranch`      | string                  | Current branch, defaults to `"master"`.                |
