@@ -18,7 +18,7 @@ package versioning
 
 import (
 	"fmt"
-	. "github.com/fbiville/header/helper"
+	. "github.com/fbiville/headache/helper"
 	"strconv"
 	. "strings"
 	"time"

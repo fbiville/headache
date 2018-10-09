@@ -1,10 +1,10 @@
 # Golang header management
 
-`header` manages license headers of Go files.
+`headache` manages license headers of Go files.
 
 ## Example
 
-By default, `header` looks for a file named `license.json` in the current directory:
+By default, `headache` looks for a file named `license.json` in the current directory:
 
 ```json
 {
@@ -57,25 +57,40 @@ By default, a file named `license.json` must be present in the current directory
 
 Alternatively, the configuration file can be explicitly provided:
 ```shell
- $ go get -u github.com/fbiville/header
- $ $(GOBIN)/header --configuration /path/to/configuration.json
+ $ go get -u github.com/fbiville/headache
+ $ $(GOBIN)/headache --configuration /path/to/configuration.json
 ```
 
 All the examples below support that option.
+
+## First run
+
+Normal dry-run/run executions detect only recent changes, based on the versioning
+configuration.
+
+When you need to run the first time, you will have to run:
+```shell
+ $ go get -u github.com/fbiville/headache
+ $ $(GOBIN)/headache --dry-run --init
+```
+
+And follow the steps just below to read, possibly edit and reinject
+the generated dump file.
 
 ## Dry run
 
 All you have to do then is to simulate the run:
 ```shell
- $ go get -u github.com/fbiville/header
- $ $(GOBIN)/header --dry-run
+ $ go get -u github.com/fbiville/headache
+ $ $(GOBIN)/headache --dry-run
 ```
 
-The command will output the file in which the actual updated file content are appended to.
+The command will output the file in which the actual diff summary is appended to.
+
 For instance:
 ```
 See dry-run result in file printed below:
-/path/to/header-dry-runXXX
+/path/to/headache-dry-runXXX
 ```
 
 The dump file follows this structure:
@@ -96,7 +111,7 @@ colored diff 2
 
 If you want to see the dump contents, you can run:
 ```shell
- $ less -r /path/to/header-dry-runXXX
+ $ less -r /path/to/headache-dry-runXXX
 ```
 
 
@@ -106,7 +121,7 @@ If you want to get a list of the Go files possibly* changed the future
 execution, you can run something like:
 
 ```
- $ ./header --dry-run | tail -n 1 | xargs cat | grep '^file:.*\.go' | sed s/file:// | sort
+ $ ./headache --dry-run | tail -n 1 | xargs cat | grep '^file:.*\.go' | sed s/file:// | sort
 ```
 
 _\* the execution may result in no changes at all, or rather, the new written content
@@ -122,17 +137,17 @@ for more information).
 To exclude files from being unnecessarily updated, locate the corresponding line, prefixed by `file:`,
 followed by the file name and replace `file:` by `xfile:`.
 
-Then, the modified dump file can be fed back to `header`, as described just below.
+Then, the modified dump file can be fed back to `headache`, as described just below.
 
 ## Run
 
 ### From dry-run dump
-Once you have successfully run `header --dry-run` and
+Once you have successfully run `headache --dry-run` and
 possibly edited the dump file (see above to see how), all you have to do then is to run:
 
 ```shell
- $ go get -u github.com/fbiville/header --dump-file /path/to/header-dry-runXXX
- $ $(GOBIN)/header
+ $ go get -u github.com/fbiville/headache --dump-file /path/to/headache-dry-runXXX
+ $ $(GOBIN)/headache
 ```
 
 This will update only the files for which names are prefixed by `file:`.
@@ -141,14 +156,14 @@ This will update only the files for which names are prefixed by `file:`.
 
 All you have to do then is to run:
 ```shell
- $ go get -u github.com/fbiville/header
- $ $(GOBIN)/header
+ $ go get -u github.com/fbiville/headache
+ $ $(GOBIN)/headache
 ```
 
 
 ## Unsupported
 
-`header` currently does **not** support text changes other than:
+`headache` currently does **not** support text changes other than:
 
  * parameter value updates
  * comment style changes

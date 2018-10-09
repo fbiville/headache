@@ -17,10 +17,11 @@
 package core
 
 import (
-	"github.com/fbiville/header/mocks"
-	. "github.com/fbiville/header/versioning"
+	"github.com/fbiville/headache/mocks"
+	. "github.com/fbiville/headache/versioning"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
 	"testing"
 )
 
@@ -153,3 +154,41 @@ func TestFailOnReservedYearParameter(t *testing.T) {
 	I.Expect(err).To(MatchError("Year is a reserved parameter and is automatically computed.\n" +
 		"Please remove it from your configuration"))
 }
+
+func TestInitDryRunMode(t *testing.T) {
+	I := NewGomegaWithT(t)
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+	vcs = new(mocks.Vcs)
+	vcsMock := vcs.(*mocks.Vcs)
+	vcsMock.On("Log", mock.AnythingOfType("[]string")).Return("", nil)
+	inputConfig := Configuration{
+		HeaderFile:   "../fixtures/short-license.txt",
+		CommentStyle: "SlashStar",
+		Includes:     []string{"../fixtures/*world.txt"},
+		Excludes:     []string{},
+		TemplateData: map[string]string{}}
+
+	configuration, err := parseConfiguration(inputConfig,
+		DryRunInitMode,
+		nil,
+		vcs,
+		func(Vcs, string, string, bool) ([]FileChange, error) { panic("nope!") })
+
+	I.Expect(err).To(BeNil())
+	changes := paths(configuration.vcsChanges)
+	I.Expect(len(changes)).To(Equal(3))
+	I.Expect(changes).To(ContainElement("../fixtures/hello_world.txt"))
+	I.Expect(changes).To(ContainElement("../fixtures/hello_ignored_world.txt"))
+	I.Expect(changes).To(ContainElement("../fixtures/bonjour_world.txt"))
+}
+
+func paths(changes []FileChange) []string {
+	result := make([]string, len(changes))
+	for i, change := range changes {
+		result[i] = change.Path
+	}
+	return result
+}
+
+

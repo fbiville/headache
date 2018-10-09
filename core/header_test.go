@@ -17,7 +17,7 @@
 package core
 
 import (
-	"github.com/fbiville/header/versioning"
+	"github.com/fbiville/headache/versioning"
 	. "github.com/onsi/gomega"
 	"io/ioutil"
 	"regexp"

@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	. "github.com/fbiville/header/core"
+	. "github.com/fbiville/headache/core"
 	"io/ioutil"
 	"os"
 )
@@ -28,6 +28,8 @@ import (
 func main() {
 	configFile := flag.String("configuration", "license.json", "Path to configuration file")
 	dryRun := flag.Bool("dry-run", false, "Dumps the execution to a file instead of altering the sources")
+	init := flag.Bool("init", false,
+		"Includes all files matching includes/excludes pattern instead of detecting VCS changes (dry-run mode only)")
 	dumpFile := flag.String("dump-file", "", "Path to the dry-run dump")
 
 	flag.Parse()
@@ -35,9 +37,16 @@ func main() {
 	if *dumpFile != "" && *dryRun {
 		panic("cannot simultaneously use --dump-file and --dry-run")
 	}
+	if *init && !*dryRun {
+		panic("cannot use --init without --dry-run")
+	}
 	executionMode := RegularRunMode
 	if *dryRun {
-		executionMode = DryRunMode
+		if *init {
+			executionMode = DryRunInitMode
+		} else {
+			executionMode = DryRunMode
+		}
 	} else if *dumpFile != "" {
 		executionMode = RunFromFilesMode
 	}
@@ -47,7 +56,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if executionMode == DryRunMode {
+	if executionMode.IsDryRun() {
 		file, err := DryRun(configuration)
 		displayDryRunResult(file, err)
 	} else {

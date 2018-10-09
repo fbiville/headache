@@ -19,7 +19,7 @@ package core
 import (
 	"bufio"
 	"fmt"
-	"github.com/fbiville/header/versioning"
+	"github.com/fbiville/headache/versioning"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	tpl "html/template"
 	"io"
@@ -32,11 +32,12 @@ import (
 type VcsChangeGetter func(versioning.Vcs, string, string) (error, []versioning.FileChange)
 
 func DryRun(config *configuration) (string, error) {
-	file, err := ioutil.TempFile("", "header-dry-run")
+	file, err := ioutil.TempFile("", "headache-dry-run")
 	if err != nil {
 		return "", err
 	}
 	config.writer = bufio.NewWriter(file)
+	defer file.Close()
 	insertInMatchedFiles(config)
 	return file.Name(), nil
 }
@@ -128,7 +129,19 @@ func prefixLines(content string, prefix string) string {
 func computeDiff(change versioning.FileChange, newContents []byte) string {
 	diffTool := diffmatchpatch.New()
 	differences := diffTool.DiffMain(change.ReferenceContent, string(newContents), false)
+	if onlyEqualDiffs(differences) {
+		return ""
+	}
 	return diffTool.DiffPrettyText(differences)
+}
+
+func onlyEqualDiffs(diffs []diffmatchpatch.Diff) bool {
+	for _, diff := range diffs {
+		if diff.Type != diffmatchpatch.DiffEqual {
+			return false
+		}
+	}
+	return true
 }
 
 func alterSourceFile(file string, newContents []byte) {

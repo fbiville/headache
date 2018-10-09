@@ -19,8 +19,9 @@ package core
 import (
 	"bufio"
 	"fmt"
-	. "github.com/fbiville/header/helper"
-	"github.com/fbiville/header/versioning"
+	. "github.com/fbiville/headache/helper"
+	"github.com/fbiville/headache/versioning"
+	"github.com/mattn/go-zglob"
 	tpl "html/template"
 	"io"
 	"io/ioutil"
@@ -53,7 +54,12 @@ const (
 	DryRunMode ExecutionMode = iota
 	RegularRunMode
 	RunFromFilesMode
+	DryRunInitMode
 )
+
+func (mode ExecutionMode) IsDryRun() bool {
+	return mode == DryRunInitMode || mode == DryRunMode
+}
 
 func ParseConfiguration(config Configuration, executionMode ExecutionMode, dumpFile *string) (*configuration, error) {
 	return parseConfiguration(config, executionMode, dumpFile, versioning.Git{}, versioning.GetVcsChanges)
@@ -89,6 +95,16 @@ func parseConfiguration(config Configuration,
 		if err != nil {
 			return nil, err
 		}
+	case DryRunInitMode:
+		rawChanges, err := matchFiles(config.Includes, config.Excludes)
+		if err != nil {
+			return nil, err
+		}
+		revision := versioning.MakeBranchRevisionSymbol(config.VcsRemote, config.VcsBranch)
+		changes, err = versioning.AugmentWithMetadata(vcs, rawChanges, revision)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &configuration{
@@ -97,6 +113,7 @@ func parseConfiguration(config Configuration,
 		vcsChanges:     changes,
 	}, nil
 }
+
 func filterFiles(changes []versioning.FileChange, includes []string, excludes []string) []versioning.FileChange {
 	result := make([]versioning.FileChange, 0)
 	for _, change := range changes {
@@ -107,8 +124,31 @@ func filterFiles(changes []versioning.FileChange, includes []string, excludes []
 	return result
 }
 
+func matchFiles(includes []string, excludes []string) ([]versioning.FileChange, error) {
+	result := make([]versioning.FileChange, 0)
+	for _, includePattern := range includes {
+		matches, err := zglob.Glob(includePattern)
+		if err != nil {
+			return nil, err
+		}
+		for _, matchedPath := range matches {
+			if !isExcluded(matchedPath, excludes) {
+				result = append(result, versioning.FileChange{
+					Path: matchedPath,
+				})
+			}
+		}
+
+	}
+	return result, nil
+}
+
 func match(path string, includes []string, excludes []string) bool {
-	return IsFile(path) && Match(path, includes) && !Match(path, excludes)
+	return Match(path, includes) && !isExcluded(path, excludes)
+}
+
+func isExcluded(path string, excludes []string) bool {
+	return !IsFile(path) || Match(path, excludes)
 }
 
 type templateResult struct {

@@ -17,7 +17,7 @@
 package versioning
 
 import (
-	"github.com/fbiville/header/mocks"
+	"github.com/fbiville/headache/mocks"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/gomega"
 	"testing"
