@@ -266,6 +266,35 @@ file:../fixtures/bonjour_world.txt
 
 }
 
+func TestSimilarHeaderReplacement(t *testing.T) {
+	I := NewGomegaWithT(t)
+	regex, _ := computeDetectionRegex([]string{"some header {{.Year}}"},
+		map[string]string{
+			"Year": "{{.Year}}",
+		})
+	file, err := DryRun(&configuration{
+		HeaderRegex:    regexp.MustCompile(regex),
+		HeaderContents: "// some header {{.Year}}",
+		vcsChanges: []versioning.FileChange{{
+			Path:             "../fixtures/hello_world_similar.txt",
+			CreationYear:     2022,
+			LastEditionYear:  2022,
+			ReferenceContent: "",
+		}},
+	})
+
+	I.Expect(err).To(BeNil())
+	s := readFile(file)
+	I.Expect(s).To(Equal(`file:../fixtures/hello_world_similar.txt
+---
+	[32m// some header 2022
+	
+	hello
+	world[0m
+---
+`))
+}
+
 func readFile(file string) string {
 	bytes, err := ioutil.ReadFile(file)
 	if err != nil {

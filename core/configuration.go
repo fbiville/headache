@@ -245,11 +245,11 @@ func injectDataRegex(result string, data map[string]string) (string, error) {
 
 func regexLines(lines []string) []string {
 	result := make([]string, 0)
-	result = append(result, "(?m)")
-	result = append(result, "(?:\\/\\*\n)?")
+	result = append(result, "(?m)(?:\\/\\*\n)?")
 	for _, line := range lines {
 		result = append(result, fmt.Sprintf("%s\\Q%s\\E\n?", "(?:\\/{2}| \\*) ?", line))
 	}
+	result = append(result, "(?:(?:\\/{2}| \\*) ?\n)*")
 	result = append(result, "(?: \\*\\/)?")
 	return result
 }
