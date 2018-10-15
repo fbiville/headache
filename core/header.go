@@ -25,6 +25,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -55,11 +56,13 @@ func insertInMatchedFiles(config *configuration) {
 
 		fileContents := string(bytes)
 		matchLocation := config.HeaderRegex.FindStringIndex(fileContents)
+		existingHeader := ""
 		if matchLocation != nil {
+			existingHeader = fileContents[matchLocation[0]:matchLocation[1]+1]
 			fileContents = strings.TrimLeft(fileContents[:matchLocation[0]]+fileContents[matchLocation[1]:], "\n")
 		}
 
-		finalHeaderContent, err := insertYears(config.HeaderContents, change)
+		finalHeaderContent, err := insertYears(config.HeaderContents, change, existingHeader)
 		if err != nil {
 			panic(err)
 		}
@@ -68,13 +71,13 @@ func insertInMatchedFiles(config *configuration) {
 	}
 }
 
-func insertYears(template string, change versioning.FileChange) (string, error) {
+func insertYears(template string, change versioning.FileChange, existingHeader string) (string, error) {
 	t, err := tpl.New("header-second-pass").Parse(template)
 	if err != nil {
 		return "", err
 	}
 	data := make(map[string]string)
-	data["Year"] = computeCopyrightYears(change)
+	data["Year"] = computeCopyrightYears(change, existingHeader)
 	builder := &strings.Builder{}
 	err = t.Execute(builder, data)
 	if err != nil {
@@ -83,8 +86,14 @@ func insertYears(template string, change versioning.FileChange) (string, error) 
 	return builder.String(), nil
 }
 
-func computeCopyrightYears(change versioning.FileChange) string {
+func computeCopyrightYears(change versioning.FileChange, existingHeader string) string {
+	regex := regexp.MustCompile(`(\d{4})(?:\s*-\s*(\d{4}))?`)
+	matches := regex.FindStringSubmatch(existingHeader)
 	creationYear := change.CreationYear
+	if len(matches) > 2 {
+		start, _ := strconv.Atoi(matches[1])
+		creationYear = start
+	}
 	year := strconv.Itoa(creationYear)
 	lastEditionYear := change.LastEditionYear
 	if lastEditionYear != 0 && lastEditionYear != creationYear {

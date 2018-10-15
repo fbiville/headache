@@ -284,13 +284,40 @@ func TestSimilarHeaderReplacement(t *testing.T) {
 	})
 
 	I.Expect(err).To(BeNil())
-	s := readFile(file)
-	I.Expect(s).To(Equal(`file:../fixtures/hello_world_similar.txt
+	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_similar.txt
 ---
 	[32m// some header 2022
 	
 	hello
 	world[0m
+---
+`))
+}
+
+func TestPreserveYear(t *testing.T) {
+	I := NewGomegaWithT(t)
+	regex, _ := computeDetectionRegex([]string{"Copyright {{.Year}} {{.Company}}"},
+		map[string]string{
+			"Year": "{{.Year}}",
+			"Company": "ACME",
+		})
+	file, err := DryRun(&configuration{
+		HeaderRegex:    regexp.MustCompile(regex),
+		HeaderContents: "// some header {{.Year}} {{.Company}}",
+		vcsChanges: []versioning.FileChange{{
+			Path:             "../fixtures/hello_world_2014.txt",
+			CreationYear:     2016,
+			LastEditionYear:  2022,
+			ReferenceContent: "",
+		}},
+	})
+
+	I.Expect(err).To(BeNil())
+	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_2014.txt
+---
+	[32m// some header 2014-2022 
+	
+	Hello world!![0m
 ---
 `))
 }
