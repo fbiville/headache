@@ -4,7 +4,7 @@
 
 ## Example
 
-By default, `headache` looks for a file named `license.json` in the current directory:
+By default, `headache` looks for a file named `headache.json` in the current directory:
 
 ```json
 {
@@ -53,7 +53,7 @@ Setting            | Type                    | Definition                       
 
 ## Custom configuration
 
-By default, a file named `license.json` must be present in the current directory.
+By default, a file named `headache.json` must be present in the current directory.
 
 Alternatively, the configuration file can be explicitly provided:
 ```shell

@@ -26,7 +26,7 @@ import (
 )
 
 func main() {
-	configFile := flag.String("configuration", "license.json", "Path to configuration file")
+	configFile := flag.String("configuration", "headache.json", "Path to configuration file")
 	dryRun := flag.Bool("dry-run", false, "Dumps the execution to a file instead of altering the sources")
 	init := flag.Bool("init", false,
 		"Includes all files matching includes/excludes pattern instead of detecting VCS changes (dry-run mode only)")
