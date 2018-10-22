@@ -37,4 +37,3 @@ func IsFile(path string) bool {
 	}
 	return fileInfo.Mode().IsRegular()
 }
-

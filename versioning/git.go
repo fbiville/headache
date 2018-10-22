@@ -25,32 +25,51 @@ import (
 
 type Git struct{}
 
-func (Git) Status(args []string) (string, error) {
-	return runGit(PrependString("status", args))
+func (Git) Status(args ...string) (string, error) {
+	return git(PrependString("status", args)...)
 }
 
-func (Git) Diff(args []string) (string, error) {
-	return runGit(PrependString("diff", args))
+func (Git) Diff(args ...string) (string, error) {
+	return git(PrependString("diff", args)...)
 }
 
-func (Git) Log(args []string) (string, error) {
-	return runGit(PrependString("log", args))
+func (g Git) LatestRevision(file string) (string, error) {
+	result, err := g.Log("-1", `--format=%H`, "--", file)
+	if err != nil {
+		return "", err
+	}
+	return strings.Trim(result, "\n"), nil
+}
+
+func (Git) Log(args ...string) (string, error) {
+	return git(PrependString("log", args)...)
 }
 
 func (Git) ShowContentAtRevision(path string, revision string) (string, error) {
+	if revision == "" {
+		return "", nil
+	}
 	fullRevision, err := revParse(revision)
 	if err != nil {
 		return "", err
 	}
 	fullRevision = strings.Trim(fullRevision, "\n")
-	return runGit([]string{"cat-file", "-p", fmt.Sprintf("%s:%s", fullRevision, path)})
+	return git("cat-file", "-p", fmt.Sprintf("%s:%s", fullRevision, path))
+}
+
+func (Git) Root() (string, error) {
+	result, err := git("rev-parse", "--show-toplevel")
+	if err != nil {
+		return "", err
+	}
+	return strings.Trim(result, "\n"), nil
 }
 
 func revParse(revision string) (string, error) {
-	return runGit([]string{"rev-parse", revision})
+	return git("rev-parse", revision)
 }
 
-func runGit(args []string) (string, error) {
+func git(args ...string) (string, error) {
 	out, err := exec.Command("git", args...).Output()
 	if err != nil {
 		return "", err

@@ -17,24 +17,18 @@
 package core
 
 import (
-	"github.com/fbiville/headache/mocks"
+	"fmt"
 	. "github.com/fbiville/headache/versioning"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/gomega"
-	"github.com/stretchr/testify/mock"
 	"testing"
-)
-
-var (
-	vcs Vcs
 )
 
 func TestConfigurationInitWithLineCommentStyle(t *testing.T) {
 	I := NewGomegaWithT(t)
 	controller := gomock.NewController(t)
 	defer controller.Finish()
-	vcs = new(mocks.Vcs)
-	getChanges := func(Vcs, string, string, bool) ([]FileChange, error) {
+	getChanges := func(Vcs, string) ([]FileChange, error) {
 		return []FileChange{
 			{Path: "../fixtures/hello_world.txt"},
 			{Path: "../fixtures/short-license.txt"}}, nil
@@ -47,7 +41,7 @@ func TestConfigurationInitWithLineCommentStyle(t *testing.T) {
 		Excludes:     []string{},
 		TemplateData: map[string]string{
 			"Owner": "ACME Labs",
-		}}, RegularRunMode, nil, vcs, getChanges)
+		}}, RegularRunMode, nil, getChanges)
 
 	I.Expect(err).To(BeNil())
 	I.Expect(configuration.HeaderContents).To(Equal(`// Copyright {{.Year}} ACME Labs
@@ -60,8 +54,7 @@ func TestConfigurationInitWithBlockCommentStyle(t *testing.T) {
 	I := NewGomegaWithT(t)
 	controller := gomock.NewController(t)
 	defer controller.Finish()
-	vcs = new(mocks.Vcs)
-	getChanges := func(Vcs, string, string, bool) ([]FileChange, error) {
+	getChanges := func(Vcs, string) ([]FileChange, error) {
 		return []FileChange{
 			{Path: "../fixtures/hello_world_2017.txt"},
 			{Path: "../fixtures/license.txt"}}, nil
@@ -74,7 +67,7 @@ func TestConfigurationInitWithBlockCommentStyle(t *testing.T) {
 		Excludes:     []string{},
 		TemplateData: map[string]string{
 			"Owner": "ACME Labs",
-		}}, RegularRunMode, nil, vcs, getChanges)
+		}}, RegularRunMode, nil, getChanges)
 
 	I.Expect(err).To(BeNil())
 	I.Expect(configuration.HeaderContents).To(Equal(`/*
@@ -89,8 +82,7 @@ func TestHeaderDetectionRegexComputation(t *testing.T) {
 	I := NewGomegaWithT(t)
 	controller := gomock.NewController(t)
 	defer controller.Finish()
-	vcs = new(mocks.Vcs)
-	getChanges := func(Vcs, string, string, bool) ([]FileChange, error) {
+	getChanges := func(Vcs, string) ([]FileChange, error) {
 		return []FileChange{
 			{Path: "../fixtures/hello_world_2017.txt"},
 			{Path: "../fixtures/license.txt"}}, nil
@@ -103,14 +95,14 @@ func TestHeaderDetectionRegexComputation(t *testing.T) {
 		Excludes:     []string{},
 		TemplateData: map[string]string{
 			"Owner": "ACME Labs",
-		}}, RegularRunMode, nil, vcs, getChanges)
+		}}, RegularRunMode, nil, getChanges)
 
 	I.Expect(err).To(BeNil())
 	I.Expect(configuration.HeaderContents).To(Equal(`/*
  * Copyright {{.Year}} ACME Labs
  */`))
 	regex := configuration.HeaderRegex
-	I.Expect(regex.String()).To(Equal("(?m)(?:\\/\\*\n)?(?:\\/{2}| \\*) ?\\QCopyright \\E.*\\Q \\E.*\\Q\\E\n?(?: \\*\\/)?"))
+	I.Expect(regex.String()).To(Equal(`(?m)(?:\/\*\n)?(?:\/{2}| \*) ?\QCopyright \E.*\Q \E.*\Q\E\n?(?:(?:\/{2}| \*) ?\n)*(?: \*\/)?`))
 	I.Expect(regex.MatchString(configuration.HeaderContents)).To(BeTrue(), "Regex should match contents")
 	I.Expect(regex.MatchString("// Copyright 2018 ACME Labs")).To(BeTrue(), "Regex should match contents in different comment style")
 	I.Expect(regex.MatchString(`/*
@@ -146,49 +138,11 @@ func TestFailOnReservedYearParameter(t *testing.T) {
 		Excludes:     []string{},
 		TemplateData: map[string]string{
 			"Year": "2042",
-		}}, RegularRunMode, nil, vcs, func(Vcs, string, string, bool) ([]FileChange, error) {
-		panic("should not be called!")
+		}}, RegularRunMode, nil, func(Vcs, string) ([]FileChange, error) {
+		return nil, fmt.Errorf("should not be called")
 	})
 
 	I.Expect(configuration).To(BeNil())
 	I.Expect(err).To(MatchError("Year is a reserved parameter and is automatically computed.\n" +
 		"Please remove it from your configuration"))
 }
-
-func TestInitDryRunMode(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs = new(mocks.Vcs)
-	vcsMock := vcs.(*mocks.Vcs)
-	vcsMock.On("Log", mock.AnythingOfType("[]string")).Return("", nil)
-	inputConfig := Configuration{
-		HeaderFile:   "../fixtures/short-license.txt",
-		CommentStyle: "SlashStar",
-		Includes:     []string{"../fixtures/*world.txt"},
-		Excludes:     []string{},
-		TemplateData: map[string]string{}}
-
-	configuration, err := parseConfiguration(inputConfig,
-		DryRunInitMode,
-		nil,
-		vcs,
-		func(Vcs, string, string, bool) ([]FileChange, error) { panic("nope!") })
-
-	I.Expect(err).To(BeNil())
-	changes := paths(configuration.vcsChanges)
-	I.Expect(len(changes)).To(Equal(3))
-	I.Expect(changes).To(ContainElement("../fixtures/hello_world.txt"))
-	I.Expect(changes).To(ContainElement("../fixtures/hello_ignored_world.txt"))
-	I.Expect(changes).To(ContainElement("../fixtures/bonjour_world.txt"))
-}
-
-func paths(changes []FileChange) []string {
-	result := make([]string, len(changes))
-	for i, change := range changes {
-		result[i] = change.Path
-	}
-	return result
-}
-
-

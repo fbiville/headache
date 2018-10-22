@@ -139,7 +139,7 @@ func TestInsertCreationYearAutomatically(t *testing.T) {
 		HeaderContents: `// some multi-line header {{.Year}}
 // with some text from Pairing Corp`,
 		vcsChanges: []versioning.FileChange{{
-			Path:             "../fixtures/hello_world_with_parameterized_header.txt",
+			Path:             "../fixtures/hello_world.txt",
 			CreationYear:     2022,
 			ReferenceContent: "",
 		}},
@@ -148,7 +148,7 @@ func TestInsertCreationYearAutomatically(t *testing.T) {
 	file, err := DryRun(&configuration)
 
 	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_with_parameterized_header.txt
+	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
 ---
 	[32m// some multi-line header 2022
 	// with some text from Pairing Corp
@@ -171,7 +171,7 @@ func TestInsertCreationAndLastEditionYearsAutomatically(t *testing.T) {
 		HeaderContents: `// some multi-line header {{.Year}}
 // with some text from Pairing Corp`,
 		vcsChanges: []versioning.FileChange{{
-			Path:             "../fixtures/hello_world_with_parameterized_header.txt",
+			Path:             "../fixtures/hello_world.txt",
 			CreationYear:     2022,
 			LastEditionYear:  2034,
 			ReferenceContent: "",
@@ -181,7 +181,7 @@ func TestInsertCreationAndLastEditionYearsAutomatically(t *testing.T) {
 	file, err := DryRun(&configuration)
 
 	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_with_parameterized_header.txt
+	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
 ---
 	[32m// some multi-line header 2022-2034
 	// with some text from Pairing Corp
@@ -204,7 +204,7 @@ func TestDoesNotInsertLastEditionYearWhenEqualToCreationYear(t *testing.T) {
 		HeaderContents: `// some multi-line header {{.Year}}
 // with some text from Pairing Corp`,
 		vcsChanges: []versioning.FileChange{{
-			Path:             "../fixtures/hello_world_with_parameterized_header.txt",
+			Path:             "../fixtures/hello_world.txt",
 			CreationYear:     2022,
 			LastEditionYear:  2022,
 			ReferenceContent: "",
@@ -214,7 +214,7 @@ func TestDoesNotInsertLastEditionYearWhenEqualToCreationYear(t *testing.T) {
 	file, err := DryRun(&configuration)
 
 	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_with_parameterized_header.txt
+	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
 ---
 	[32m// some multi-line header 2022
 	// with some text from Pairing Corp

@@ -36,7 +36,7 @@ func TestCommittedChanges(t *testing.T) {
 	vcs = new(mocks.Vcs)
 	vcsMock = vcs.(*mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
-	vcsMock.On("Diff", []string{"--name-status", "origin/master..HEAD"}).Return(`M	.gitignore
+	vcsMock.On("Diff", "--name-status", "origin/master..HEAD").Return(`M	.gitignore
 M	configuration.go
 D	header.go
 D	header_test.go
@@ -44,7 +44,7 @@ R099	line_comment.go	core/line_comment.go
 A	license-header.txt
 `, nil)
 
-	changes, err := getCommittedChanges(vcs, "origin", "master")
+	changes, err := getCommittedChanges(vcs, "origin/master")
 
 	I.Expect(err).To(BeNil())
 	I.Expect(changes).To(Equal([]FileChange{
@@ -63,7 +63,7 @@ func TestUncommittedFiles(t *testing.T) {
 	vcs = new(mocks.Vcs)
 	vcsMock = vcs.(*mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
-	vcsMock.On("Status", []string{"--porcelain"}).Return(` M Gopkg.lock
+	vcsMock.On("Status", "--porcelain").Return(` M Gopkg.lock
  D main.go
 ?? build.sh
 ?? git.go
@@ -86,43 +86,12 @@ func TestNoUncommittedFiles(t *testing.T) {
 	vcs = new(mocks.Vcs)
 	vcsMock = vcs.(*mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
-	vcsMock.On("Status", []string{"--porcelain"}).Return("", nil)
+	vcsMock.On("Status", "--porcelain").Return("", nil)
 
 	changes, err := getUncommittedChanges(vcs)
 
 	I.Expect(err).To(BeNil())
 	I.Expect(changes).To(Equal([]FileChange{}))
-}
-
-func TestChangedFiles(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs = new(mocks.Vcs)
-	vcsMock = vcs.(*mocks.Vcs)
-	defer vcsMock.AssertExpectations(t)
-	vcsMock.On("Diff", []string{"--name-status", "origin/master..HEAD"}).Return(`D	main.go
-D	header_test.go
-A	license-header.txt`, nil)
-	vcsMock.On("Status", []string{"--porcelain"}).Return(` A main.go
-M  license-header.txt
-?? git.go`, nil)
-	vcsMock.On("Log", []string{"--format=%at", "--", "license-header.txt"}).
-		Return("1483228800\n1483228900\n", nil)
-	vcsMock.On("Log", []string{"--format=%at", "--", "main.go"}).
-		Return("1514764800\n1514764900\n", nil)
-	vcsMock.On("Log", []string{"--format=%at", "--", "git.go"}).
-		Return("1546300800\n1546300900\n", nil)
-
-	changes, err := GetVcsChanges(vcs, "origin", "master", false)
-
-	I.Expect(err).To(BeNil())
-	I.Expect(changes).To(ContainElement(FileChange{
-		Path: "license-header.txt", CreationYear: 2017, LastEditionYear: 2017}))
-	I.Expect(changes).To(ContainElement(FileChange{
-		Path: "main.go", CreationYear: 2018, LastEditionYear: 2018}))
-	I.Expect(changes).To(ContainElement(FileChange{
-		Path: "git.go", CreationYear: 2019, LastEditionYear: 2019}))
 }
 
 type FakeTime struct {
@@ -140,7 +109,7 @@ func TestGetFileDates(t *testing.T) {
 	vcs = new(mocks.Vcs)
 	vcsMock = vcs.(*mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
-	vcsMock.On("Log", []string{"--format=%at", "--", "somefile.go"}).Return(`1537974554
+	vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(`1537974554
 1537973963
 1537970000
 1537846444
@@ -164,7 +133,7 @@ func TestGetFileDatesWithoutDates(t *testing.T) {
 	vcs = new(mocks.Vcs)
 	vcsMock = vcs.(*mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
-	vcsMock.On("Log", []string{"--format=%at", "--", "somefile.go"}).Return(``, nil)
+	vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(``, nil)
 
 	history, err := getFileHistory(vcs, "somefile.go", FakeTime{timestamp: fakeNow})
 
@@ -180,7 +149,7 @@ func TestGetFileDatesWithOnlyOneDate(t *testing.T) {
 	vcs = new(mocks.Vcs)
 	vcsMock = vcs.(*mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
-	vcsMock.On("Log", []string{"--format=%at", "--", "somefile.go"}).Return(`405561600
+	vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(`405561600
 `, nil)
 
 	history, err := getFileHistory(vcs, "somefile.go", FakeTime{timestamp: fakeNow})

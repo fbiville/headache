@@ -10,19 +10,46 @@ type Vcs struct {
 }
 
 // Diff provides a mock function with given fields: args
-func (_m *Vcs) Diff(args []string) (string, error) {
-	ret := _m.Called(args)
+func (_m *Vcs) Diff(args ...string) (string, error) {
+	_va := make([]interface{}, len(args))
+	for _i := range args {
+		_va[_i] = args[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func([]string) string); ok {
-		r0 = rf(args)
+	if rf, ok := ret.Get(0).(func(...string) string); ok {
+		r0 = rf(args...)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func([]string) error); ok {
-		r1 = rf(args)
+	if rf, ok := ret.Get(1).(func(...string) error); ok {
+		r1 = rf(args...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// LatestRevision provides a mock function with given fields: file
+func (_m *Vcs) LatestRevision(file string) (string, error) {
+	ret := _m.Called(file)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(file)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(file)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -31,19 +58,46 @@ func (_m *Vcs) Diff(args []string) (string, error) {
 }
 
 // Log provides a mock function with given fields: args
-func (_m *Vcs) Log(args []string) (string, error) {
-	ret := _m.Called(args)
+func (_m *Vcs) Log(args ...string) (string, error) {
+	_va := make([]interface{}, len(args))
+	for _i := range args {
+		_va[_i] = args[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func([]string) string); ok {
-		r0 = rf(args)
+	if rf, ok := ret.Get(0).(func(...string) string); ok {
+		r0 = rf(args...)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func([]string) error); ok {
-		r1 = rf(args)
+	if rf, ok := ret.Get(1).(func(...string) error); ok {
+		r1 = rf(args...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Root provides a mock function with given fields:
+func (_m *Vcs) Root() (string, error) {
+	ret := _m.Called()
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -73,19 +127,25 @@ func (_m *Vcs) ShowContentAtRevision(path string, revision string) (string, erro
 }
 
 // Status provides a mock function with given fields: args
-func (_m *Vcs) Status(args []string) (string, error) {
-	ret := _m.Called(args)
+func (_m *Vcs) Status(args ...string) (string, error) {
+	_va := make([]interface{}, len(args))
+	for _i := range args {
+		_va[_i] = args[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
 
 	var r0 string
-	if rf, ok := ret.Get(0).(func([]string) string); ok {
-		r0 = rf(args)
+	if rf, ok := ret.Get(0).(func(...string) string); ok {
+		r0 = rf(args...)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func([]string) error); ok {
-		r1 = rf(args)
+	if rf, ok := ret.Get(1).(func(...string) error); ok {
+		r1 = rf(args...)
 	} else {
 		r1 = ret.Error(1)
 	}

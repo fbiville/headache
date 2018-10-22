@@ -31,14 +31,11 @@ import (
 )
 
 type Configuration struct {
-	HeaderFile        string            `json:"headerFile"`
-	CommentStyle      string            `json:"style"`
-	Includes          []string          `json:"includes"`
-	Excludes          []string          `json:"excludes"`
-	VcsImplementation string            `json:"vcs"`
-	VcsRemote         string            `json:"vcsRemote"`
-	VcsBranch         string            `json:"vcsBranch"`
-	TemplateData      map[string]string `json:"data"`
+	HeaderFile   string            `json:"headerFile"`
+	CommentStyle string            `json:"style"`
+	Includes     []string          `json:"includes"`
+	Excludes     []string          `json:"excludes"`
+	TemplateData map[string]string `json:"data"`
 }
 
 type configuration struct {
@@ -54,57 +51,34 @@ const (
 	DryRunMode ExecutionMode = iota
 	RegularRunMode
 	RunFromFilesMode
-	DryRunInitMode
 )
 
 func (mode ExecutionMode) IsDryRun() bool {
-	return mode == DryRunInitMode || mode == DryRunMode
+	return mode == DryRunMode
 }
 
 func ParseConfiguration(config Configuration, executionMode ExecutionMode, dumpFile *string) (*configuration, error) {
-	return parseConfiguration(config, executionMode, dumpFile, versioning.Git{}, versioning.GetVcsChanges)
+	return parseConfiguration(config, executionMode, dumpFile, versioning.GetVcsChanges)
 }
 
 func parseConfiguration(config Configuration,
 	executionMode ExecutionMode,
 	dumpFile *string,
-	vcs versioning.Vcs,
-	getChanges func(versioning.Vcs, string, string, bool) ([]versioning.FileChange, error)) (*configuration, error) {
+	getRevisionChanges func(versioning.Vcs, string) ([]versioning.FileChange, error)) (*configuration, error) {
 
 	contents, err := parseTemplate(config.HeaderFile, config.TemplateData, newCommentStyle(config.CommentStyle))
 	if err != nil {
 		return nil, err
 	}
+
 	var changes []versioning.FileChange
-	switch executionMode {
-	case DryRunMode:
-		fallthrough
-	case RegularRunMode:
-		rawChanges, err := getChanges(vcs, config.VcsRemote, config.VcsBranch, executionMode == DryRunMode)
-		if err != nil {
-			return nil, err
-		}
-		changes = filterFiles(rawChanges, config.Includes, config.Excludes)
-	case RunFromFilesMode:
-		rawChanges, err := parseDryRunFile(dumpFile)
-		if err != nil {
-			return nil, err
-		}
-		revision := versioning.MakeBranchRevisionSymbol(config.VcsRemote, config.VcsBranch)
-		changes, err = versioning.AugmentWithMetadata(vcs, rawChanges, revision)
-		if err != nil {
-			return nil, err
-		}
-	case DryRunInitMode:
-		rawChanges, err := matchFiles(config.Includes, config.Excludes)
-		if err != nil {
-			return nil, err
-		}
-		revision := versioning.MakeBranchRevisionSymbol(config.VcsRemote, config.VcsBranch)
-		changes, err = versioning.AugmentWithMetadata(vcs, rawChanges, revision)
-		if err != nil {
-			return nil, err
-		}
+	if executionMode == RunFromFilesMode {
+		changes, err = parseChangesFromDumpFile(dumpFile)
+	} else {
+		changes, err = getFileChanges(config, getRevisionChanges)
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	return &configuration{
@@ -114,17 +88,26 @@ func parseConfiguration(config Configuration,
 	}, nil
 }
 
-func filterFiles(changes []versioning.FileChange, includes []string, excludes []string) []versioning.FileChange {
-	result := make([]versioning.FileChange, 0)
-	for _, change := range changes {
-		if match(change.Path, includes, excludes) {
-			result = append(result, change)
-		}
+func getFileChanges(config Configuration,
+	getRevisionChanges func(versioning.Vcs, string) ([]versioning.FileChange, error)) ([]versioning.FileChange, error) {
+	vcs := versioning.Git{}
+	revision, err := versioning.GetLatestExecutionRevision(vcs)
+	if err != nil {
+		return nil, err
 	}
-	return result
+	var changes []versioning.FileChange
+	if revision == "" {
+		changes, err = matchAllFiles(config.Includes, config.Excludes)
+	} else {
+		changes, err = matchChangedFiles(revision, config, vcs, getRevisionChanges)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return versioning.AddMetadata(vcs, changes, revision)
 }
 
-func matchFiles(includes []string, excludes []string) ([]versioning.FileChange, error) {
+func matchAllFiles(includes []string, excludes []string) ([]versioning.FileChange, error) {
 	result := make([]versioning.FileChange, 0)
 	for _, includePattern := range includes {
 		matches, err := zglob.Glob(includePattern)
@@ -141,6 +124,24 @@ func matchFiles(includes []string, excludes []string) ([]versioning.FileChange, 
 
 	}
 	return result, nil
+}
+
+func matchChangedFiles(sha string, config Configuration, vcs versioning.Vcs, getVersioningChanges func(versioning.Vcs, string) ([]versioning.FileChange, error)) ([]versioning.FileChange, error) {
+	fileChanges, err := getVersioningChanges(vcs, sha)
+	if err != nil {
+		return nil, err
+	}
+	return filterFiles(fileChanges, config.Includes, config.Excludes), nil
+}
+
+func filterFiles(changes []versioning.FileChange, includes []string, excludes []string) []versioning.FileChange {
+	result := make([]versioning.FileChange, 0)
+	for _, change := range changes {
+		if match(change.Path, includes, excludes) {
+			result = append(result, change)
+		}
+	}
+	return result
 }
 
 func match(path string, includes []string, excludes []string) bool {
@@ -245,12 +246,12 @@ func injectDataRegex(result string, data map[string]string) (string, error) {
 
 func regexLines(lines []string) []string {
 	result := make([]string, 0)
-	result = append(result, "(?m)(?:\\/\\*\n)?")
+	result = append(result, `(?m)(?:\/\*\n)?`)
 	for _, line := range lines {
-		result = append(result, fmt.Sprintf("%s\\Q%s\\E\n?", "(?:\\/{2}| \\*) ?", line))
+		result = append(result, fmt.Sprintf(`%s\Q%s\E\n?`, `(?:\/{2}| \*) ?`, line))
 	}
-	result = append(result, "(?:(?:\\/{2}| \\*) ?\n)*")
-	result = append(result, "(?: \\*\\/)?")
+	result = append(result, `(?:(?:\/{2}| \*) ?\n)*`)
+	result = append(result, `(?: \*\/)?`)
 	return result
 }
 
@@ -261,7 +262,7 @@ func regexValues(data *map[string]string) *map[string]string {
 	return data
 }
 
-func parseDryRunFile(file *string) ([]versioning.FileChange, error) {
+func parseChangesFromDumpFile(file *string) ([]versioning.FileChange, error) {
 	bytes, err := ioutil.ReadFile(*file)
 	if err != nil {
 		return nil, err
