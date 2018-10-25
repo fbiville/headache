@@ -19,8 +19,8 @@ package core
 import (
 	"bufio"
 	"fmt"
+	"github.com/fbiville/headache/helper"
 	"github.com/fbiville/headache/versioning"
-	"github.com/sergi/go-diff/diffmatchpatch"
 	tpl "html/template"
 	"io"
 	"io/ioutil"
@@ -58,7 +58,7 @@ func insertInMatchedFiles(config *configuration) {
 		matchLocation := config.HeaderRegex.FindStringIndex(fileContents)
 		existingHeader := ""
 		if matchLocation != nil {
-			existingHeader = fileContents[matchLocation[0]:matchLocation[1]+1]
+			existingHeader = fileContents[matchLocation[0]:matchLocation[1]]
 			fileContents = strings.TrimLeft(fileContents[:matchLocation[0]]+fileContents[matchLocation[1]:], "\n")
 		}
 
@@ -118,39 +118,30 @@ func appendToDryRunFile(writer io.Writer, change versioning.FileChange, newConte
 		bufferedWriter := bufio.NewWriter(writer)
 		bufferedWriter.Write([]byte(fmt.Sprintf("file:%s", change.Path)))
 		bufferedWriter.Write([]byte("\n---\n"))
-		bufferedWriter.Write([]byte(prefixLines(diff, "\t")))
+		bufferedWriter.Write([]byte(diff))
 		bufferedWriter.Write([]byte("---\n"))
 		bufferedWriter.Flush()
 	}
 
 }
-func prefixLines(content string, prefix string) string {
-	builder := strings.Builder{}
-	newline := "\n"
-	for _, line := range strings.Split(content, newline) {
-		builder.WriteString(prefix)
-		builder.WriteString(line)
-		builder.WriteString(newline)
-	}
-	return builder.String()
-}
 
 func computeDiff(change versioning.FileChange, newContents []byte) string {
-	diffTool := diffmatchpatch.New()
-	differences := diffTool.DiffMain(change.ReferenceContent, string(newContents), false)
-	if onlyEqualDiffs(differences) {
-		return ""
+	differences, err := helper.Diff(currentOrReferenceContent(change), string(newContents))
+	if err != nil {
+		panic(err)
 	}
-	return diffTool.DiffPrettyText(differences)
+	return differences
 }
 
-func onlyEqualDiffs(diffs []diffmatchpatch.Diff) bool {
-	for _, diff := range diffs {
-		if diff.Type != diffmatchpatch.DiffEqual {
-			return false
+func currentOrReferenceContent(change versioning.FileChange) string {
+	if change.ReferenceContent == "" {
+		bytes, err := ioutil.ReadFile(change.Path)
+		if err != nil {
+			panic(err)
 		}
+		return string(bytes)
 	}
-	return true
+	return change.ReferenceContent
 }
 
 func alterSourceFile(file string, newContents []byte) {

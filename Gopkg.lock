@@ -57,14 +57,6 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:d917313f309bda80d27274d53985bc65651f81a5b66b820749ac7f8ef061fd04"
-  name = "github.com/sergi/go-diff"
-  packages = ["diffmatchpatch"]
-  pruneopts = "UT"
-  revision = "1744e2970ca51c86172c8190fadad617561ed6e7"
-  version = "v1.0.0"
-
-[[projects]]
   digest = "1:ac83cf90d08b63ad5f7e020ef480d319ae890c208f8524622a2f3136e2686b02"
   name = "github.com/stretchr/objx"
   packages = ["."]
@@ -137,7 +129,6 @@
     "github.com/golang/mock/gomock",
     "github.com/mattn/go-zglob",
     "github.com/onsi/gomega",
-    "github.com/sergi/go-diff/diffmatchpatch",
     "github.com/stretchr/testify/mock",
   ]
   solver-name = "gps-cdcl"

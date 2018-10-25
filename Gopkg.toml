@@ -36,7 +36,3 @@
 [[constraint]]
   name = "github.com/mattn/go-zglob"
   revision = "2ea3427bfa539cca900ca2768d8663ecc8a708c1"
-
-[[constraint]]
-  name = "github.com/sergi/go-diff"
-  version = "1.0.0"

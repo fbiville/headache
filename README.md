@@ -45,9 +45,6 @@ Setting            | Type                    | Definition                       
 | `includes`       | array of strings        | File globs to include (`*` and `**` are supported)     |
 | `excludes`       | array of strings        | File globs to exclude (`*` and `**` are supported)     |
 | `data`           | map of string to string | Key-value pairs, matching the parameters used in `headerFile`.<br>Please note that `{{.Year}}` is a reserved parameter and will automatically be computed based on the files versioning information.  |
-| `vcs`            | string                  | Versioning system, only `"git"` is supported for now and is the default value.  |
-| `vcsRemote`      | string                  | Remote of the current branch, defaults to `"origin"`.  |
-| `vcsBranch`      | string                  | Current branch, defaults to `"master"`.                |
 
 
 
@@ -62,20 +59,6 @@ Alternatively, the configuration file can be explicitly provided:
 ```
 
 All the examples below support that option.
-
-## First run
-
-Normal dry-run/run executions detect only recent changes, based on the versioning
-configuration.
-
-When you need to run the first time, you will have to run:
-```shell
- $ go get -u github.com/fbiville/headache
- $ $(GOBIN)/headache --dry-run --init
-```
-
-And follow the steps just below to read, possibly edit and reinject
-the generated dump file.
 
 ## Dry run
 
@@ -93,39 +76,17 @@ See dry-run result in file printed below:
 /path/to/headache-dry-runXXX
 ```
 
-The dump file follows this structure:
-```text
-file:FILENAME
----
-multi-line
-colored diff 1
----
-file:OTHERFILE
----
-multi-line
-colored diff 2
----
-```
-
-### View the colorized diff summary
-
-If you want to see the dump contents, you can run:
-```shell
- $ less -r /path/to/headache-dry-runXXX
-```
-
+The dump file aggregates the diff for each file that would be modified by the execution.
 
 ### List the files
 
-If you want to get a list of the Go files possibly* changed the future
+If you want to get a list of the Go files possibly changed the future
 execution, you can run something like:
 
 ```
  $ ./headache --dry-run | tail -n 1 | xargs cat | grep '^file:.*\.go' | sed s/file:// | sort
 ```
 
-_\* the execution may result in no changes at all, or rather, the new written content
-will be the same as the previous one_
 
 ### Exclude files
 
@@ -163,7 +124,7 @@ All you have to do then is to run:
 
 ## Unsupported
 
-`headache` currently does **not** support text changes other than:
+`headache` currently does **not** support text changes **other than**:
 
  * parameter value updates
  * comment style changes

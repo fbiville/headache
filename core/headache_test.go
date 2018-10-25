@@ -40,11 +40,10 @@ func TestHeaderWrite(t *testing.T) {
 	I.Expect(err).To(BeNil())
 	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
 ---
-	[32m// some multi-line header
-	// with some text
-	
-	hello
-	world[0m
+0a1,3
+> // some multi-line header
+> // with some text
+> 
 ---
 `))
 }
@@ -61,15 +60,7 @@ func TestHeaderDoesNotWriteTwice(t *testing.T) {
 	file, err := DryRun(&configuration)
 
 	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_with_header.txt
----
-	[32m// some multi-line header
-	// with some text
-	
-	hello
-	world[0m
----
-`), "it should rewrite the file as is")
+	I.Expect(readFile(file)).To(BeEmpty(), "it should rewrite the file as is")
 }
 
 func TestHeaderCommentUpdate(t *testing.T) {
@@ -89,13 +80,14 @@ func TestHeaderCommentUpdate(t *testing.T) {
 	I.Expect(err).To(BeNil())
 	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_with_header.txt
 ---
-	[32m/*
-	 * some multi-line header
-	 * with some text
-	 */
-	
-	hello
-	world[0m
+1,2c1,4
+< // some multi-line header
+< // with some text
+---
+> /*
+>  * some multi-line header
+>  * with some text
+>  */
 ---
 `), "it should rewrite the file with slashstar style")
 }
@@ -118,11 +110,11 @@ func TestHeaderDataUpdate(t *testing.T) {
 	I.Expect(err).To(BeNil())
 	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_with_parameterized_header.txt
 ---
-	[32m// some multi-line header 2017
-	// with some text from Pairing Corp
-	
-	hello
-	world[0m
+2c2,3
+< // with some text from Soloing Inc.
+---
+> // with some text from Pairing Corp
+> 
 ---
 `))
 }
@@ -150,11 +142,10 @@ func TestInsertCreationYearAutomatically(t *testing.T) {
 	I.Expect(err).To(BeNil())
 	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
 ---
-	[32m// some multi-line header 2022
-	// with some text from Pairing Corp
-	
-	hello
-	world[0m
+0a1,3
+> // some multi-line header 2022
+> // with some text from Pairing Corp
+> 
 ---
 `))
 }
@@ -183,11 +174,10 @@ func TestInsertCreationAndLastEditionYearsAutomatically(t *testing.T) {
 	I.Expect(err).To(BeNil())
 	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
 ---
-	[32m// some multi-line header 2022-2034
-	// with some text from Pairing Corp
-	
-	hello
-	world[0m
+0a1,3
+> // some multi-line header 2022-2034
+> // with some text from Pairing Corp
+> 
 ---
 `))
 }
@@ -216,11 +206,10 @@ func TestDoesNotInsertLastEditionYearWhenEqualToCreationYear(t *testing.T) {
 	I.Expect(err).To(BeNil())
 	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
 ---
-	[32m// some multi-line header 2022
-	// with some text from Pairing Corp
-	
-	hello
-	world[0m
+0a1,3
+> // some multi-line header 2022
+> // with some text from Pairing Corp
+> 
 ---
 `))
 }
@@ -250,17 +239,15 @@ func TestHeaderDryRunOnSeveralFiles(t *testing.T) {
 	I.Expect(err).To(BeNil())
 	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
 ---
-	[32m// some header 2022
-	
-	hello
-	world[0m
+0a1,2
+> // some header 2022
+> 
 ---
 file:../fixtures/bonjour_world.txt
 ---
-	[32m// some header 2019-2021
-	
-	bonjour
-	le world[0m
+0a1,2
+> // some header 2019-2021
+> 
 ---
 `))
 
@@ -286,10 +273,13 @@ func TestSimilarHeaderReplacement(t *testing.T) {
 	I.Expect(err).To(BeNil())
 	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_similar.txt
 ---
-	[32m// some header 2022
-	
-	hello
-	world[0m
+1,4c1
+< /*
+<  * some header 2022
+<  *
+<  */
+---
+> // some header 2022
 ---
 `))
 }
@@ -315,9 +305,10 @@ func TestPreserveYear(t *testing.T) {
 	I.Expect(err).To(BeNil())
 	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_2014.txt
 ---
-	[32m// some header 2014-2022 
-	
-	Hello world!![0m
+1c1
+< // Copyright 2014 ACME
+---
+> // some header 2014-2022 
 ---
 `))
 }

@@ -47,7 +47,7 @@ func TestConfigurationInitWithLineCommentStyle(t *testing.T) {
 	I.Expect(configuration.HeaderContents).To(Equal(`// Copyright {{.Year}} ACME Labs
 //
 // Some fictional license`))
-	I.Expect(configuration.vcsChanges).To(Equal([]FileChange{{Path: "../fixtures/hello_world.txt"}}))
+	I.Expect(onlyPaths(configuration.vcsChanges)).To(Equal([]FileChange{{Path: "../fixtures/hello_world.txt"}}))
 }
 
 func TestConfigurationInitWithBlockCommentStyle(t *testing.T) {
@@ -75,7 +75,7 @@ func TestConfigurationInitWithBlockCommentStyle(t *testing.T) {
  *
  * Some fictional license
  */`))
-	I.Expect(configuration.vcsChanges).To(Equal([]FileChange{{Path: "../fixtures/hello_world_2017.txt"}}))
+	I.Expect(onlyPaths(configuration.vcsChanges)).To(Equal([]FileChange{{Path: "../fixtures/hello_world_2017.txt"}}))
 }
 
 func TestHeaderDetectionRegexComputation(t *testing.T) {
@@ -108,7 +108,7 @@ func TestHeaderDetectionRegexComputation(t *testing.T) {
 	I.Expect(regex.MatchString(`/*
  * Copyright 2018-2042 ACME World corporation
  */`)).To(BeTrue(), "Regex should match contents with different data")
-	I.Expect(configuration.vcsChanges).To(Equal([]FileChange{{Path: "../fixtures/hello_world_2017.txt"}}))
+	I.Expect(onlyPaths(configuration.vcsChanges)).To(Equal([]FileChange{{Path: "../fixtures/hello_world_2017.txt"}}))
 
 }
 
@@ -145,4 +145,14 @@ func TestFailOnReservedYearParameter(t *testing.T) {
 	I.Expect(configuration).To(BeNil())
 	I.Expect(err).To(MatchError("Year is a reserved parameter and is automatically computed.\n" +
 		"Please remove it from your configuration"))
+}
+
+func onlyPaths(changes []FileChange) []FileChange {
+	result := make([]FileChange, len(changes))
+	for i := range changes {
+		result[i] = FileChange{
+			Path: changes[i].Path,
+		}
+	}
+	return result
 }
