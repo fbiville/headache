@@ -102,7 +102,7 @@ func TestHeaderDetectionRegexComputation(t *testing.T) {
  * Copyright {{.Year}} ACME Labs
  */`))
 	regex := configuration.HeaderRegex
-	I.Expect(regex.String()).To(Equal(`(?m)(?:\/\*\n)?(?:\/{2}| \*) ?\QCopyright \E.*\Q \E.*\Q\E\n?(?:(?:\/{2}| \*) ?\n)*(?: \*\/)?`))
+	I.Expect(regex.String()).To(Equal(`(?im)(?:\/\*\n)?(?:\/{2}| \*)[ \t]*\QCopyright \E.*\Q \E.*\Q\E[ \t\.]*\n?(?:(?:\/{2}| \*) ?\n)*(?: \*\/)?`))
 	I.Expect(regex.MatchString(configuration.HeaderContents)).To(BeTrue(), "Regex should match contents")
 	I.Expect(regex.MatchString("// Copyright 2018 ACME Labs")).To(BeTrue(), "Regex should match contents in different comment style")
 	I.Expect(regex.MatchString(`/*

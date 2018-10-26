@@ -255,13 +255,13 @@ file:../fixtures/bonjour_world.txt
 
 func TestSimilarHeaderReplacement(t *testing.T) {
 	I := NewGomegaWithT(t)
-	regex, _ := computeDetectionRegex([]string{"some header {{.Year}}"},
+	regex, _ := computeDetectionRegex([]string{"some header {{.Year}} and stuff"},
 		map[string]string{
 			"Year": "{{.Year}}",
 		})
 	file, err := DryRun(&configuration{
 		HeaderRegex:    regexp.MustCompile(regex),
-		HeaderContents: "// some header {{.Year}}",
+		HeaderContents: "// some header {{.Year}} and stuff",
 		vcsChanges: []versioning.FileChange{{
 			Path:             "../fixtures/hello_world_similar.txt",
 			CreationYear:     2022,
@@ -271,15 +271,16 @@ func TestSimilarHeaderReplacement(t *testing.T) {
 	})
 
 	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_similar.txt
+	s := readFile(file)
+	I.Expect(s).To(Equal(`file:../fixtures/hello_world_similar.txt
 ---
 1,4c1
 < /*
-<  * some header 2022
+<  *   Some Header 2022 and stuff .
 <  *
 <  */
 ---
-> // some header 2022
+> // some header 2022 and stuff
 ---
 `))
 }
