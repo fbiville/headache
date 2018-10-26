@@ -28,12 +28,12 @@ import (
 func main() {
 	configFile := flag.String("configuration", "headache.json", "Path to configuration file")
 	dryRun := flag.Bool("dry-run", false, "Dumps the execution to a file instead of altering the sources")
-	dumpFile := flag.String("diff-file", "", "Path to the dry-run diff file")
+	dumpFile := flag.String("dry-run-file", "", "Run on files referenced by the dry-run diff file")
 
 	flag.Parse()
 
 	if *dumpFile != "" && *dryRun {
-		panic("cannot simultaneously use --dump-file and --dry-run")
+		panic("cannot simultaneously use --dry-run-file and --dry-run")
 	}
 
 	executionMode := RegularRunMode

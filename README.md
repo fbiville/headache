@@ -76,7 +76,7 @@ See dry-run result in file printed below:
 /path/to/headache-dry-runXXX
 ```
 
-The dump file aggregates the diff for each file that would be modified by the execution.
+The dry-run file aggregates the diff for each file that would be modified by the execution.
 
 ### List the files
 
@@ -98,16 +98,16 @@ for more information).
 To exclude files from being unnecessarily updated, locate the corresponding line, prefixed by `file:`,
 followed by the file name and replace `file:` by `xfile:`.
 
-Then, the modified dump file can be fed back to `headache`, as described just below.
+Then, the modified dry-run file can be fed back to `headache`, as described just below.
 
 ## Run
 
-### From dry-run dump
+### From dry-run file
 Once you have successfully run `headache --dry-run` and
-possibly edited the dump file (see above to see how), all you have to do then is to run:
+possibly edited the dry-run file (see above to see how), all you have to do then is to run:
 
 ```shell
- $ go get -u github.com/fbiville/headache --dump-file /path/to/headache-dry-runXXX
+ $ go get -u github.com/fbiville/headache --dry-run-file /path/to/headache-dry-runXXX
  $ $(GOBIN)/headache
 ```
 
