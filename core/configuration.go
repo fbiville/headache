@@ -24,7 +24,6 @@ import (
 	"github.com/mattn/go-zglob"
 	tpl "html/template"
 	"io"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -45,25 +44,11 @@ type configuration struct {
 	writer         io.Writer
 }
 
-type ExecutionMode int
-
-const (
-	DryRunMode ExecutionMode = iota
-	RegularRunMode
-	RunFromFilesMode
-)
-
-func (mode ExecutionMode) IsDryRun() bool {
-	return mode == DryRunMode
-}
-
-func ParseConfiguration(config Configuration, executionMode ExecutionMode, dumpFile *string) (*configuration, error) {
-	return parseConfiguration(config, executionMode, dumpFile, versioning.GetVcsChanges)
+func ParseConfiguration(config Configuration) (*configuration, error) {
+	return parseConfiguration(config, versioning.GetVcsChanges)
 }
 
 func parseConfiguration(config Configuration,
-	executionMode ExecutionMode,
-	dumpFile *string,
 	getRevisionChanges func(versioning.Vcs, string) ([]versioning.FileChange, error)) (*configuration, error) {
 
 	contents, err := parseTemplate(config.HeaderFile, config.TemplateData, newCommentStyle(config.CommentStyle))
@@ -71,12 +56,7 @@ func parseConfiguration(config Configuration,
 		return nil, err
 	}
 
-	var changes []versioning.FileChange
-	if executionMode == RunFromFilesMode {
-		changes, err = parseChangesFromDumpFile(dumpFile)
-	} else {
-		changes, err = getFileChanges(config, getRevisionChanges)
-	}
+	changes, err := getFileChanges(config, getRevisionChanges)
 	if err != nil {
 		return nil, err
 	}
@@ -262,20 +242,3 @@ func regexValues(data *map[string]string) *map[string]string {
 	return data
 }
 
-func parseChangesFromDumpFile(file *string) ([]versioning.FileChange, error) {
-	bytes, err := ioutil.ReadFile(*file)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]versioning.FileChange, 0)
-	lines := strings.Split(string(bytes), "\n")
-	for _, line := range lines {
-		if strings.HasPrefix(line, "file:") {
-			filename := strings.Trim(strings.Replace(line, "file:", "", 1), "\n")
-			result = append(result, versioning.FileChange{
-				Path: filename,
-			})
-		}
-	}
-	return result, nil
-}

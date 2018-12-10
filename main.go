@@ -19,41 +19,21 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	. "github.com/fbiville/headache/core"
 	"io/ioutil"
-	"os"
 )
 
 func main() {
 	configFile := flag.String("configuration", "headache.json", "Path to configuration file")
-	dryRun := flag.Bool("dry-run", false, "Dumps the execution to a file instead of altering the sources")
-	dumpFile := flag.String("dry-run-file", "", "Run on files referenced by the dry-run diff file")
 
 	flag.Parse()
 
-	if *dumpFile != "" && *dryRun {
-		panic("cannot simultaneously use --dry-run-file and --dry-run")
-	}
-
-	executionMode := RegularRunMode
-	if *dryRun {
-		executionMode = DryRunMode
-	} else if *dumpFile != "" {
-		executionMode = RunFromFilesMode
-	}
-
 	rawConfiguration := readConfiguration(configFile)
-	configuration, err := ParseConfiguration(rawConfiguration, executionMode, dumpFile)
+	configuration, err := ParseConfiguration(rawConfiguration)
 	if err != nil {
 		panic(err)
 	}
-	if executionMode.IsDryRun() {
-		file, err := DryRun(configuration)
-		displayDryRunResult(file, err)
-	} else {
-		Run(configuration)
-	}
+	Run(configuration)
 }
 
 func readConfiguration(configFile *string) Configuration {
@@ -63,15 +43,10 @@ func readConfiguration(configFile *string) Configuration {
 		panic(err)
 	}
 	result := Configuration{}
-	json.Unmarshal(file, &result)
+	err = json.Unmarshal(file, &result)
+	if err != nil {
+		panic(err)
+	}
 	return result
 }
 
-func displayDryRunResult(file string, err error) {
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "An error occurred during the execution, see below:")
-		panic(err)
-	} else {
-		fmt.Printf("See dry-run result in file printed below:\n%s\n", file)
-	}
-}

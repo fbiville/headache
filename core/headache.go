@@ -17,12 +17,10 @@
 package core
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/fbiville/headache/helper"
 	"github.com/fbiville/headache/versioning"
 	tpl "html/template"
-	"io"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -32,24 +30,18 @@ import (
 
 type VcsChangeGetter func(versioning.Vcs, string, string) (error, []versioning.FileChange)
 
-func DryRun(config *configuration) (string, error) {
-	file, err := ioutil.TempFile("", "headache-dry-run")
-	if err != nil {
-		return "", err
-	}
-	config.writer = bufio.NewWriter(file)
-	defer file.Close()
-	insertInMatchedFiles(config)
-	return file.Name(), nil
-}
-
 func Run(config *configuration) {
-	insertInMatchedFiles(config)
+	insertInMatchedFiles(config, &helper.OsFileWriter{})
 }
 
-func insertInMatchedFiles(config *configuration) {
+func doRun(config *configuration, writer helper.FileWriter) {
+	insertInMatchedFiles(config, writer)
+}
+
+func insertInMatchedFiles(config *configuration, fileWriter helper.FileWriter) {
 	for _, change := range config.vcsChanges {
-		bytes, err := ioutil.ReadFile(change.Path)
+		path := change.Path
+		bytes, err := ioutil.ReadFile(path)
 		if err != nil {
 			panic(err)
 		}
@@ -67,7 +59,7 @@ func insertInMatchedFiles(config *configuration) {
 			panic(err)
 		}
 		newContents := append([]byte(fmt.Sprintf("%s%s", finalHeaderContent, "\n\n")), []byte(fileContents)...)
-		writeToFile(config, change, newContents)
+		writeToFile(fileWriter, path, newContents)
 	}
 }
 
@@ -77,7 +69,11 @@ func insertYears(template string, change versioning.FileChange, existingHeader s
 		return "", err
 	}
 	data := make(map[string]string)
-	data["Year"] = computeCopyrightYears(change, existingHeader)
+	copyrightYears, err := computeCopyrightYears(change, existingHeader)
+	if err != nil {
+		return "", err
+	}
+	data["Year"] = copyrightYears
 	builder := &strings.Builder{}
 	err = t.Execute(builder, data)
 	if err != nil {
@@ -86,12 +82,15 @@ func insertYears(template string, change versioning.FileChange, existingHeader s
 	return builder.String(), nil
 }
 
-func computeCopyrightYears(change versioning.FileChange, existingHeader string) string {
+func computeCopyrightYears(change versioning.FileChange, existingHeader string) (string, error) {
 	regex := regexp.MustCompile(`(\d{4})(?:\s*-\s*(\d{4}))?`)
 	matches := regex.FindStringSubmatch(existingHeader)
 	creationYear := change.CreationYear
 	if len(matches) > 2 {
-		start, _ := strconv.Atoi(matches[1])
+		start, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return "", err
+		}
 		creationYear = start
 	}
 	year := strconv.Itoa(creationYear)
@@ -99,58 +98,16 @@ func computeCopyrightYears(change versioning.FileChange, existingHeader string) 
 	if lastEditionYear != 0 && lastEditionYear != creationYear {
 		year += fmt.Sprintf("-%d", lastEditionYear)
 	}
-	return year
+	return year, nil
 }
 
-func writeToFile(config *configuration, change versioning.FileChange, newContents []byte) {
-	file := change.Path
-	var writer = config.writer
-	if writer != nil {
-		appendToDryRunFile(writer, change, newContents)
-	} else {
-		alterSourceFile(file, newContents)
-	}
-}
-
-func appendToDryRunFile(writer io.Writer, change versioning.FileChange, newContents []byte) {
-	diff := computeDiff(change, newContents)
-	if diff != "" {
-		bufferedWriter := bufio.NewWriter(writer)
-		bufferedWriter.Write([]byte(fmt.Sprintf("file:%s", change.Path)))
-		bufferedWriter.Write([]byte("\n---\n"))
-		bufferedWriter.Write([]byte(diff))
-		bufferedWriter.Write([]byte("---\n"))
-		bufferedWriter.Flush()
-	}
-
-}
-
-func computeDiff(change versioning.FileChange, newContents []byte) string {
-	differences, err := helper.Diff(currentOrReferenceContent(change), string(newContents))
+func writeToFile(fileWriter helper.FileWriter, path string, newContents []byte) {
+	file, err := fileWriter.Open(path, os.O_WRONLY|os.O_TRUNC, os.ModeAppend)
 	if err != nil {
 		panic(err)
 	}
-	return differences
-}
-
-func currentOrReferenceContent(change versioning.FileChange) string {
-	if change.ReferenceContent == "" {
-		bytes, err := ioutil.ReadFile(change.Path)
-		if err != nil {
-			panic(err)
-		}
-		return string(bytes)
-	}
-	return change.ReferenceContent
-}
-
-func alterSourceFile(file string, newContents []byte) {
-	openFile, err := os.OpenFile(file, os.O_WRONLY|os.O_TRUNC, os.ModeAppend)
-	if err != nil {
-		panic(err)
-	}
-	_, err = openFile.Write(newContents)
-	openFile.Close()
+	defer fileWriter.Close(file)
+	_, err = file.Write(newContents)
 	if err != nil {
 		panic(err)
 	}

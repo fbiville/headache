@@ -1,6 +1,7 @@
-# Golang header management
+# Header management
 
-`headache` manages license headers of Go files.
+`headache` manages license headers.
+It is biased towards Golang but should work on any other language (provided a compatible code style is implemented).
 
 ## Example
 
@@ -41,16 +42,26 @@ limitations under the License.
 Setting            | Type                    | Definition                                             |
 | ---------------- |:----------------------: | -----------------------------------------------------: |
 | `headerFile`     | string                  | Path to the parameterized license header. Parameters are referenced with the following syntax: {{.PARAMETER-NAME}}               |
-| `style`          | string                  | One of: SlashStar (`/* ... */`), SlashSlash (`// ...`) |
+| `style`          | string                  | One of: `SlashStar` (`/* ... */`), `SlashSlash` (`// ...`) |
 | `includes`       | array of strings        | File globs to include (`*` and `**` are supported)     |
 | `excludes`       | array of strings        | File globs to exclude (`*` and `**` are supported)     |
 | `data`           | map of string to string | Key-value pairs, matching the parameters used in `headerFile`.<br>Please note that `{{.Year}}` is a reserved parameter and will automatically be computed based on the files versioning information.  |
 
 
-
-## Custom configuration
+## Run
 
 By default, a file named `headache.json` must be present in the current directory.
+
+All you have to do then is:
+```shell
+ $ go get -u github.com/fbiville/headache
+ $ $(GOBIN)/headache
+```
+
+As a result, source files will be changed and `.headache-run` will be generated to keep track of `headache` last execution.
+This file must be versioned as well.
+
+## Run with custom configuration
 
 Alternatively, the configuration file can be explicitly provided:
 ```shell
@@ -58,73 +69,3 @@ Alternatively, the configuration file can be explicitly provided:
  $ $(GOBIN)/headache --configuration /path/to/configuration.json
 ```
 
-All the examples below support that option.
-
-## Dry run
-
-All you have to do then is to simulate the run:
-```shell
- $ go get -u github.com/fbiville/headache
- $ $(GOBIN)/headache --dry-run
-```
-
-The command will output the file in which the actual diff summary is appended to.
-
-For instance:
-```
-See dry-run result in file printed below:
-/path/to/headache-dry-runXXX
-```
-
-The dry-run file aggregates the diff for each file that would be modified by the execution.
-
-### List the files
-
-If you want to get a list of the Go files possibly changed the future
-execution, you can run something like:
-
-```
- $ ./headache --dry-run | tail -n 1 | xargs cat | grep '^file:.*\.go' | sed s/file:// | sort
-```
-
-
-### Exclude files
-
-Copyright years should only be updated after a
-significant change is made (read this
-[Stack Overflow post](https://stackoverflow.com/questions/2390230/do-copyright-dates-need-to-be-updated)
-for more information).
-
-To exclude files from being unnecessarily updated, locate the corresponding line, prefixed by `file:`,
-followed by the file name and replace `file:` by `xfile:`.
-
-Then, the modified dry-run file can be fed back to `headache`, as described just below.
-
-## Run
-
-### From dry-run file
-Once you have successfully run `headache --dry-run` and
-possibly edited the dry-run file (see above to see how), all you have to do then is to run:
-
-```shell
- $ go get -u github.com/fbiville/headache --dry-run-file /path/to/headache-dry-runXXX
- $ $(GOBIN)/headache
-```
-
-This will update only the files for which names are prefixed by `file:`.
-
-### Direct run
-
-All you have to do then is to run:
-```shell
- $ go get -u github.com/fbiville/headache
- $ $(GOBIN)/headache
-```
-
-
-## Unsupported
-
-`headache` currently does **not** support text changes **other than**:
-
- * parameter value updates
- * comment style changes

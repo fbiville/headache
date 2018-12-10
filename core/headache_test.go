@@ -17,15 +17,24 @@
 package core
 
 import (
+	"github.com/fbiville/headache/helper"
 	"github.com/fbiville/headache/versioning"
 	. "github.com/onsi/gomega"
 	"io/ioutil"
+	"math/rand"
+	"os"
 	"regexp"
+	"strconv"
 	"testing"
+	"time"
 )
 
 func TestHeaderWrite(t *testing.T) {
 	I := NewGomegaWithT(t)
+	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
+	defer helper.UnsafeClose(testWriter.file)
+	defer helper.UnsafeDelete(testWriter.file)
+
 	newHeader := `// some multi-line header
 // with some text`
 	regex, _ := computeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
@@ -35,36 +44,44 @@ func TestHeaderWrite(t *testing.T) {
 		vcsChanges:     []versioning.FileChange{{Path: "../fixtures/hello_world.txt", ReferenceContent: ""}},
 	}
 
-	file, err := DryRun(&configuration)
+	doRun(&configuration, testWriter)
 
-	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
----
-0a1,3
-> // some multi-line header
-> // with some text
-> 
+	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header
+// with some text
+
+hello
+world
 ---
 `))
 }
+
 func TestHeaderDoesNotWriteTwice(t *testing.T) {
 	I := NewGomegaWithT(t)
+	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
+	defer helper.UnsafeClose(testWriter.file)
+	defer helper.UnsafeDelete(testWriter.file)
+
 	regex, _ := computeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
+	sourceFile := "../fixtures/hello_world_with_header.txt"
 	configuration := configuration{
 		HeaderRegex: regexp.MustCompile(regex),
 		HeaderContents: `// some multi-line header
 // with some text`,
-		vcsChanges: []versioning.FileChange{{Path: "../fixtures/hello_world_with_header.txt", ReferenceContent: ""}},
+		vcsChanges: []versioning.FileChange{{Path: sourceFile, ReferenceContent: ""}},
 	}
 
-	file, err := DryRun(&configuration)
+	doRun(&configuration, testWriter)
 
-	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(BeEmpty(), "it should rewrite the file as is")
+	I.Expect(readFile(testWriter.file.Name())).To(Equal(readFile(sourceFile) + "\n---\n"),
+		"it should rewrite the file as is")
 }
 
 func TestHeaderCommentUpdate(t *testing.T) {
 	I := NewGomegaWithT(t)
+	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
+	defer helper.UnsafeClose(testWriter.file)
+	defer helper.UnsafeDelete(testWriter.file)
+
 	regex, _ := computeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
 	configuration := configuration{
 		HeaderRegex: regexp.MustCompile(regex),
@@ -75,25 +92,25 @@ func TestHeaderCommentUpdate(t *testing.T) {
 		vcsChanges: []versioning.FileChange{{Path: "../fixtures/hello_world_with_header.txt", ReferenceContent: ""}},
 	}
 
-	file, err := DryRun(&configuration)
+	doRun(&configuration, testWriter)
 
-	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_with_header.txt
----
-1,2c1,4
-< // some multi-line header
-< // with some text
----
-> /*
->  * some multi-line header
->  * with some text
->  */
+	I.Expect(readFile(testWriter.file.Name())).To(Equal(`/*
+ * some multi-line header
+ * with some text
+ */
+
+hello
+world
 ---
 `), "it should rewrite the file with slashstar style")
 }
 
 func TestHeaderDataUpdate(t *testing.T) {
 	I := NewGomegaWithT(t)
+	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
+	defer helper.UnsafeClose(testWriter.file)
+	defer helper.UnsafeDelete(testWriter.file)
+
 	regex, _ := computeDetectionRegex([]string{"some multi-line header 2017", "with some text from {{.Company}}"},
 		map[string]string{
 			"Company": "Pairing Corp",
@@ -105,22 +122,24 @@ func TestHeaderDataUpdate(t *testing.T) {
 		vcsChanges: []versioning.FileChange{{Path: "../fixtures/hello_world_with_parameterized_header.txt", ReferenceContent: ""}},
 	}
 
-	file, err := DryRun(&configuration)
+	doRun(&configuration, testWriter)
 
-	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_with_parameterized_header.txt
----
-2c2,3
-< // with some text from Soloing Inc.
----
-> // with some text from Pairing Corp
-> 
+	file := readFile(testWriter.file.Name())
+	I.Expect(file).To(Equal(`// some multi-line header 2017
+// with some text from Pairing Corp
+
+hello
+world
 ---
 `))
 }
 
 func TestInsertCreationYearAutomatically(t *testing.T) {
 	I := NewGomegaWithT(t)
+	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
+	defer helper.UnsafeClose(testWriter.file)
+	defer helper.UnsafeDelete(testWriter.file)
+
 	regex, _ := computeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
 		map[string]string{
 			"Year":    "{{.Year}}",
@@ -137,21 +156,23 @@ func TestInsertCreationYearAutomatically(t *testing.T) {
 		}},
 	}
 
-	file, err := DryRun(&configuration)
+	doRun(&configuration, testWriter)
 
-	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
----
-0a1,3
-> // some multi-line header 2022
-> // with some text from Pairing Corp
-> 
+	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header 2022
+// with some text from Pairing Corp
+
+hello
+world
 ---
 `))
 }
 
 func TestInsertCreationAndLastEditionYearsAutomatically(t *testing.T) {
 	I := NewGomegaWithT(t)
+	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
+	defer helper.UnsafeClose(testWriter.file)
+	defer helper.UnsafeDelete(testWriter.file)
+
 	regex, _ := computeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
 		map[string]string{
 			"Year":    "{{.Year}}",
@@ -169,21 +190,23 @@ func TestInsertCreationAndLastEditionYearsAutomatically(t *testing.T) {
 		}},
 	}
 
-	file, err := DryRun(&configuration)
+	doRun(&configuration, testWriter)
 
-	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
----
-0a1,3
-> // some multi-line header 2022-2034
-> // with some text from Pairing Corp
-> 
+	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header 2022-2034
+// with some text from Pairing Corp
+
+hello
+world
 ---
 `))
 }
 
 func TestDoesNotInsertLastEditionYearWhenEqualToCreationYear(t *testing.T) {
 	I := NewGomegaWithT(t)
+	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
+	defer helper.UnsafeClose(testWriter.file)
+	defer helper.UnsafeDelete(testWriter.file)
+
 	regex, _ := computeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
 		map[string]string{
 			"Year":    "{{.Year}}",
@@ -201,26 +224,28 @@ func TestDoesNotInsertLastEditionYearWhenEqualToCreationYear(t *testing.T) {
 		}},
 	}
 
-	file, err := DryRun(&configuration)
+	doRun(&configuration, testWriter)
 
-	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
----
-0a1,3
-> // some multi-line header 2022
-> // with some text from Pairing Corp
-> 
+	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header 2022
+// with some text from Pairing Corp
+
+hello
+world
 ---
 `))
 }
 
 func TestHeaderDryRunOnSeveralFiles(t *testing.T) {
 	I := NewGomegaWithT(t)
+	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
+	defer helper.UnsafeClose(testWriter.file)
+	defer helper.UnsafeDelete(testWriter.file)
+
 	regex, _ := computeDetectionRegex([]string{"some header {{.Year}}"},
 		map[string]string{
 			"Year": "{{.Year}}",
 		})
-	file, err := DryRun(&configuration{
+	doRun(&configuration{
 		HeaderRegex:    regexp.MustCompile(regex),
 		HeaderContents: "// some header {{.Year}}",
 		vcsChanges: []versioning.FileChange{{
@@ -234,20 +259,18 @@ func TestHeaderDryRunOnSeveralFiles(t *testing.T) {
 			LastEditionYear:  2021,
 			ReferenceContent: "",
 		}},
-	})
+	}, testWriter)
 
-	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world.txt
+	s := readFile(testWriter.file.Name())
+	I.Expect(s).To(Equal(`// some header 2022
+
+hello
+world
 ---
-0a1,2
-> // some header 2022
-> 
----
-file:../fixtures/bonjour_world.txt
----
-0a1,2
-> // some header 2019-2021
-> 
+// some header 2019-2021
+
+bonjour
+le world
 ---
 `))
 
@@ -255,11 +278,15 @@ file:../fixtures/bonjour_world.txt
 
 func TestSimilarHeaderReplacement(t *testing.T) {
 	I := NewGomegaWithT(t)
+	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
+	defer helper.UnsafeClose(testWriter.file)
+	defer helper.UnsafeDelete(testWriter.file)
+
 	regex, _ := computeDetectionRegex([]string{"some header {{.Year}} and stuff"},
 		map[string]string{
 			"Year": "{{.Year}}",
 		})
-	file, err := DryRun(&configuration{
+	doRun(&configuration{
 		HeaderRegex:    regexp.MustCompile(regex),
 		HeaderContents: "// some header {{.Year}} and stuff",
 		vcsChanges: []versioning.FileChange{{
@@ -268,31 +295,28 @@ func TestSimilarHeaderReplacement(t *testing.T) {
 			LastEditionYear:  2022,
 			ReferenceContent: "",
 		}},
-	})
+	}, testWriter)
 
-	I.Expect(err).To(BeNil())
-	s := readFile(file)
-	I.Expect(s).To(Equal(`file:../fixtures/hello_world_similar.txt
----
-1,4c1
-< /*
-<  *   Some Header 2022 and stuff .
-<  *
-<  */
----
-> // some header 2022 and stuff
+	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some header 2022 and stuff
+
+hello
+world
 ---
 `))
 }
 
 func TestPreserveYear(t *testing.T) {
 	I := NewGomegaWithT(t)
+	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
+	defer helper.UnsafeClose(testWriter.file)
+	defer helper.UnsafeDelete(testWriter.file)
+
 	regex, _ := computeDetectionRegex([]string{"Copyright {{.Year}} {{.Company}}"},
 		map[string]string{
-			"Year": "{{.Year}}",
+			"Year":    "{{.Year}}",
 			"Company": "ACME",
 		})
-	file, err := DryRun(&configuration{
+	doRun(&configuration{
 		HeaderRegex:    regexp.MustCompile(regex),
 		HeaderContents: "// some header {{.Year}} {{.Company}}",
 		vcsChanges: []versioning.FileChange{{
@@ -301,15 +325,11 @@ func TestPreserveYear(t *testing.T) {
 			LastEditionYear:  2022,
 			ReferenceContent: "",
 		}},
-	})
+	}, testWriter)
 
-	I.Expect(err).To(BeNil())
-	I.Expect(readFile(file)).To(Equal(`file:../fixtures/hello_world_2014.txt
----
-1c1
-< // Copyright 2014 ACME
----
-> // some header 2014-2022 
+	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some header 2014-2022 
+
+Hello world!!
 ---
 `))
 }
@@ -320,4 +340,31 @@ func readFile(file string) string {
 		panic(err)
 	}
 	return string(bytes)
+}
+
+type AppendingFile struct {
+	file *os.File
+}
+
+// open-close are noops because they are managed within the tests
+func (osw *AppendingFile) Open(name string, mask int, permissions os.FileMode) (*os.File, error) {
+	return osw.file, nil
+}
+func (*AppendingFile) Close(file *os.File) {
+	_, err := file.WriteString("\n---\n")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func temporaryFile(name string, umask int) *AppendingFile {
+	rand.Seed(time.Now().UTC().UnixNano())
+	tempDirectory := os.TempDir()
+	file, err := os.OpenFile(tempDirectory+name+strconv.Itoa(rand.Int()), umask, 0644)
+	if err != nil {
+		panic(err)
+	}
+	return &AppendingFile{
+		file: file,
+	}
 }

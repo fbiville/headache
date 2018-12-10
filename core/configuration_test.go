@@ -41,7 +41,7 @@ func TestConfigurationInitWithLineCommentStyle(t *testing.T) {
 		Excludes:     []string{},
 		TemplateData: map[string]string{
 			"Owner": "ACME Labs",
-		}}, RegularRunMode, nil, getChanges)
+		}}, getChanges)
 
 	I.Expect(err).To(BeNil())
 	I.Expect(configuration.HeaderContents).To(Equal(`// Copyright {{.Year}} ACME Labs
@@ -67,7 +67,7 @@ func TestConfigurationInitWithBlockCommentStyle(t *testing.T) {
 		Excludes:     []string{},
 		TemplateData: map[string]string{
 			"Owner": "ACME Labs",
-		}}, RegularRunMode, nil, getChanges)
+		}}, getChanges)
 
 	I.Expect(err).To(BeNil())
 	I.Expect(configuration.HeaderContents).To(Equal(`/*
@@ -95,7 +95,7 @@ func TestHeaderDetectionRegexComputation(t *testing.T) {
 		Excludes:     []string{},
 		TemplateData: map[string]string{
 			"Owner": "ACME Labs",
-		}}, RegularRunMode, nil, getChanges)
+		}}, getChanges)
 
 	I.Expect(err).To(BeNil())
 	I.Expect(configuration.HeaderContents).To(Equal(`/*
@@ -138,7 +138,7 @@ func TestFailOnReservedYearParameter(t *testing.T) {
 		Excludes:     []string{},
 		TemplateData: map[string]string{
 			"Year": "2042",
-		}}, RegularRunMode, nil, func(Vcs, string) ([]FileChange, error) {
+		}}, func(Vcs, string) ([]FileChange, error) {
 		return nil, fmt.Errorf("should not be called")
 	})
 

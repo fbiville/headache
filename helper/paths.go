@@ -37,3 +37,30 @@ func IsFile(path string) bool {
 	}
 	return fileInfo.Mode().IsRegular()
 }
+
+type FileWriter interface {
+	Open(name string, mask int, permissions os.FileMode) (*os.File, error)
+	Close(file *os.File)
+}
+
+type OsFileWriter struct {}
+func (*OsFileWriter) Open(name string, mask int, permissions os.FileMode) (*os.File, error) {
+	return os.OpenFile(name, mask, permissions)
+}
+func (*OsFileWriter) Close(file *os.File) {
+	UnsafeClose(file)
+}
+
+func UnsafeClose(file *os.File) {
+	err := file.Close()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func UnsafeDelete(file *os.File) {
+	err := os.Remove(file.Name())
+	if err != nil {
+		panic(err)
+	}
+}
