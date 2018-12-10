@@ -182,7 +182,7 @@ func readLines(file string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer openFile.Close()
+	defer UnsafeClose(openFile)
 
 	lines := make([]string, 0)
 	scanner := bufio.NewScanner(openFile)
