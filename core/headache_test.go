@@ -25,6 +25,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -360,6 +361,9 @@ func (*AppendingFile) Close(file *os.File) {
 func temporaryFile(name string, umask int) *AppendingFile {
 	rand.Seed(time.Now().UTC().UnixNano())
 	tempDirectory := os.TempDir()
+	if !strings.HasSuffix(tempDirectory, "/") {
+		tempDirectory += "/"
+	}
 	file, err := os.OpenFile(tempDirectory+name+strconv.Itoa(rand.Int()), umask, 0644)
 	if err != nil {
 		panic(err)
