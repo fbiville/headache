@@ -3,6 +3,10 @@
 `headache` manages license headers.
 It is biased towards Golang but should work on any other language (provided a compatible code style is implemented).
 
+## Build status
+
+[![Build Status](https://travis-ci.org/fbiville/headache.svg?branch=master)](https://travis-ci.org/fbiville/headache)
+
 ## Example
 
 By default, `headache` looks for a file named `headache.json` in the current directory:
