@@ -23,7 +23,6 @@ import (
 	"github.com/fbiville/headache/versioning"
 	"github.com/mattn/go-zglob"
 	tpl "html/template"
-	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -41,7 +40,6 @@ type configuration struct {
 	HeaderContents string
 	HeaderRegex    *regexp.Regexp
 	vcsChanges     []versioning.FileChange
-	writer         io.Writer
 }
 
 func ParseConfiguration(config Configuration) (*configuration, error) {
@@ -51,7 +49,8 @@ func ParseConfiguration(config Configuration) (*configuration, error) {
 func parseConfiguration(config Configuration,
 	getRevisionChanges func(versioning.Vcs, string) ([]versioning.FileChange, error)) (*configuration, error) {
 
-	contents, err := parseTemplate(config.HeaderFile, config.TemplateData, newCommentStyle(config.CommentStyle))
+	contents, err := parseTemplate(config.HeaderFile, config.TemplateData,
+		ParseCommentStyle(config.CommentStyle))
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +105,8 @@ func matchAllFiles(includes []string, excludes []string) ([]versioning.FileChang
 	return result, nil
 }
 
-func matchChangedFiles(sha string, config Configuration, vcs versioning.Vcs, getVersioningChanges func(versioning.Vcs, string) ([]versioning.FileChange, error)) ([]versioning.FileChange, error) {
+func matchChangedFiles(sha string, config Configuration, vcs versioning.Vcs,
+	getVersioningChanges func(versioning.Vcs, string) ([]versioning.FileChange, error)) ([]versioning.FileChange, error) {
 	fileChanges, err := getVersioningChanges(vcs, sha)
 	if err != nil {
 		return nil, err
@@ -159,7 +159,7 @@ func parseTemplate(file string, data map[string]string, style CommentStyle) (*te
 	if err != nil {
 		return nil, err
 	}
-	regex, err := computeDetectionRegex(rawLines, data)
+	regex, err := ComputeDetectionRegex(rawLines, data)
 	if err != nil {
 		return nil, err
 	}
@@ -194,51 +194,22 @@ func readLines(file string) ([]string, error) {
 
 func applyComments(lines []string, style CommentStyle) ([]string, error) {
 	result := make([]string, 0)
-	if style.opening() {
-		result = append(result, style.open())
+	if openingLine := style.GetOpeningString(); openingLine != "" {
+		result = append(result, openingLine)
 	}
 	for _, line := range lines {
-		result = append(result, style.apply(line))
+		result = append(result, prependLine(style, line))
 	}
-	if style.closing() {
-		result = append(result, style.close())
+	if closingLine := style.GetClosingString(); closingLine != "" {
+		result = append(result, closingLine)
 	}
 	return result, nil
 }
 
-func computeDetectionRegex(lines []string, data map[string]string) (string, error) {
-	regex := regexLines(lines)
-	return injectDataRegex(strings.Join(regex, ""), data)
-}
-
-func injectDataRegex(result string, data map[string]string) (string, error) {
-	template, err := tpl.New("header-regex").Parse(result)
-	if err != nil {
-		return "", err
+func prependLine(style CommentStyle, line string) string {
+	comment := style.GetString()
+	if line == "" {
+		return strings.TrimRight(comment, " ")
 	}
-	builder := &strings.Builder{}
-	err = template.Execute(builder, regexValues(&data))
-	if err != nil {
-		return "", err
-	}
-	return builder.String(), nil
+	return comment + line
 }
-
-func regexLines(lines []string) []string {
-	result := make([]string, 0)
-	result = append(result, `(?im)(?:\/\*\n)?`)
-	for _, line := range lines {
-		result = append(result, fmt.Sprintf(`%s\Q%s\E[ \t\.]*\n?`, `(?:\/{2}| \*)[ \t]*`, line))
-	}
-	result = append(result, `(?:(?:\/{2}| \*) ?\n)*`)
-	result = append(result, `(?: \*\/)?`)
-	return result
-}
-
-func regexValues(data *map[string]string) *map[string]string {
-	for k := range *data {
-		(*data)[k] = "\\E.*\\Q"
-	}
-	return data
-}
-

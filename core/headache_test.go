@@ -38,7 +38,7 @@ func TestHeaderWrite(t *testing.T) {
 
 	newHeader := `// some multi-line header
 // with some text`
-	regex, _ := computeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
+	regex, _ := ComputeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
 	configuration := configuration{
 		HeaderRegex:    regexp.MustCompile(regex),
 		HeaderContents: newHeader,
@@ -62,7 +62,7 @@ func TestHeaderDoesNotWriteTwice(t *testing.T) {
 	defer helper.UnsafeClose(testWriter.file)
 	defer helper.UnsafeDelete(testWriter.file)
 
-	regex, _ := computeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
+	regex, _ := ComputeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
 	sourceFile := "../fixtures/hello_world_with_header.txt"
 	configuration := configuration{
 		HeaderRegex: regexp.MustCompile(regex),
@@ -83,7 +83,7 @@ func TestHeaderCommentUpdate(t *testing.T) {
 	defer helper.UnsafeClose(testWriter.file)
 	defer helper.UnsafeDelete(testWriter.file)
 
-	regex, _ := computeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
+	regex, _ := ComputeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
 	configuration := configuration{
 		HeaderRegex: regexp.MustCompile(regex),
 		HeaderContents: `/*
@@ -112,7 +112,7 @@ func TestHeaderDataUpdate(t *testing.T) {
 	defer helper.UnsafeClose(testWriter.file)
 	defer helper.UnsafeDelete(testWriter.file)
 
-	regex, _ := computeDetectionRegex([]string{"some multi-line header 2017", "with some text from {{.Company}}"},
+	regex, _ := ComputeDetectionRegex([]string{"some multi-line header 2017", "with some text from {{.Company}}"},
 		map[string]string{
 			"Company": "Pairing Corp",
 		})
@@ -141,7 +141,7 @@ func TestInsertCreationYearAutomatically(t *testing.T) {
 	defer helper.UnsafeClose(testWriter.file)
 	defer helper.UnsafeDelete(testWriter.file)
 
-	regex, _ := computeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
+	regex, _ := ComputeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
 		map[string]string{
 			"Year":    "{{.Year}}",
 			"Company": "Pairing Corp",
@@ -174,7 +174,7 @@ func TestInsertCreationAndLastEditionYearsAutomatically(t *testing.T) {
 	defer helper.UnsafeClose(testWriter.file)
 	defer helper.UnsafeDelete(testWriter.file)
 
-	regex, _ := computeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
+	regex, _ := ComputeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
 		map[string]string{
 			"Year":    "{{.Year}}",
 			"Company": "Pairing Corp",
@@ -208,7 +208,7 @@ func TestDoesNotInsertLastEditionYearWhenEqualToCreationYear(t *testing.T) {
 	defer helper.UnsafeClose(testWriter.file)
 	defer helper.UnsafeDelete(testWriter.file)
 
-	regex, _ := computeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
+	regex, _ := ComputeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
 		map[string]string{
 			"Year":    "{{.Year}}",
 			"Company": "Pairing Corp",
@@ -242,7 +242,7 @@ func TestHeaderDryRunOnSeveralFiles(t *testing.T) {
 	defer helper.UnsafeClose(testWriter.file)
 	defer helper.UnsafeDelete(testWriter.file)
 
-	regex, _ := computeDetectionRegex([]string{"some header {{.Year}}"},
+	regex, _ := ComputeDetectionRegex([]string{"some header {{.Year}}"},
 		map[string]string{
 			"Year": "{{.Year}}",
 		})
@@ -283,7 +283,7 @@ func TestSimilarHeaderReplacement(t *testing.T) {
 	defer helper.UnsafeClose(testWriter.file)
 	defer helper.UnsafeDelete(testWriter.file)
 
-	regex, _ := computeDetectionRegex([]string{"some header {{.Year}} and stuff"},
+	regex, _ := ComputeDetectionRegex([]string{"some header {{.Year}} and stuff"},
 		map[string]string{
 			"Year": "{{.Year}}",
 		})
@@ -312,7 +312,7 @@ func TestPreserveYear(t *testing.T) {
 	defer helper.UnsafeClose(testWriter.file)
 	defer helper.UnsafeDelete(testWriter.file)
 
-	regex, _ := computeDetectionRegex([]string{"Copyright {{.Year}} {{.Company}}"},
+	regex, _ := ComputeDetectionRegex([]string{"Copyright {{.Year}} {{.Company}}"},
 		map[string]string{
 			"Year":    "{{.Year}}",
 			"Company": "ACME",
