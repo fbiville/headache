@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package versioning
+package vcs
 
 import (
 	"fmt"
@@ -24,20 +24,20 @@ import (
 	"time"
 )
 
-type Vcs interface {
-	Root() (string, error)
-	LatestRevision(file string) (string, error)
-	Status(args ...string) (string, error)
-	Diff(args ...string) (string, error)
-	Log(args ...string) (string, error)
-	ShowContentAtRevision(path string, revision string) (string, error)
+type VersioningClient interface {
+	GetChanges(revision string) ([]FileChange, error)
+	AddMetadata(changes []FileChange, clock Clock) ([]FileChange, error)
+	GetClient() Vcs
+}
+
+type Client struct {
+	Vcs Vcs
 }
 
 type FileChange struct {
-	Path             string
-	CreationYear     int
-	LastEditionYear  int
-	ReferenceContent string
+	Path            string
+	CreationYear    int
+	LastEditionYear int
 }
 
 type FileHistory struct {
@@ -45,26 +45,25 @@ type FileHistory struct {
 	LastEditionYear int
 }
 
-func GetVcsChanges(vcs Vcs, revision string) ([]FileChange, error) {
-	committedChanges, err := getCommittedChanges(vcs, revision)
+func (client *Client) GetChanges(revision string) ([]FileChange, error) {
+	vcs := client.Vcs
+	committedChanges, err := GetCommittedChanges(vcs, revision)
 	if err != nil {
 		return nil, err
 	}
-	uncommittedChanges, err := getUncommittedChanges(vcs)
+	uncommittedChanges, err := GetUncommittedChanges(vcs)
 	if err != nil {
 		return nil, err
 	}
 	return merge(committedChanges, uncommittedChanges), nil
 }
 
-func AddMetadata(vcs Vcs, changes []FileChange, revision string) ([]FileChange, error) {
+func (client *Client) AddMetadata(changes []FileChange, clock Clock) ([]FileChange, error) {
 	for i, change := range changes {
-		history, err := getFileHistory(vcs, change.Path, SystemClock{})
+		history, err := GetFileHistory(client.Vcs, change.Path, clock)
 		if err != nil {
 			return nil, err
 		}
-		referenceContent, _ := vcs.ShowContentAtRevision(change.Path, revision)
-		change.ReferenceContent = referenceContent
 		change.CreationYear = history.CreationYear
 		change.LastEditionYear = history.LastEditionYear
 		changes[i] = change
@@ -72,31 +71,11 @@ func AddMetadata(vcs Vcs, changes []FileChange, revision string) ([]FileChange, 
 	return changes, nil
 }
 
-func merge(changes []FileChange, changes2 []FileChange) []FileChange {
-	set := make(map[FileChange]struct{}, len(changes))
-	for _, change := range changes {
-		set[change] = struct{}{}
-	}
-
-	for _, change := range changes2 {
-		if _, ok := set[change]; !ok {
-			set[change] = struct{}{}
-		}
-	}
-	return keys(set)
+func (client *Client) GetClient() Vcs {
+	return client.Vcs
 }
 
-func keys(set map[FileChange]struct{}) []FileChange {
-	i := 0
-	result := make([]FileChange, len(set))
-	for key := range set {
-		result[i] = key
-		i++
-	}
-	return result
-}
-
-func getCommittedChanges(vcs Vcs, revision string) ([]FileChange, error) {
+func GetCommittedChanges(vcs Vcs, revision string) ([]FileChange, error) {
 	revisions := fmt.Sprintf("%s..HEAD", revision)
 	output, err := vcs.Diff("--name-status", revisions)
 	if err != nil {
@@ -126,7 +105,7 @@ func getCommittedChanges(vcs Vcs, revision string) ([]FileChange, error) {
 	return result, nil
 }
 
-func getUncommittedChanges(vcs Vcs) ([]FileChange, error) {
+func GetUncommittedChanges(vcs Vcs) ([]FileChange, error) {
 	output, err := vcs.Status("--porcelain")
 	if err != nil {
 		return nil, err
@@ -151,7 +130,7 @@ func getUncommittedChanges(vcs Vcs) ([]FileChange, error) {
 	return result, nil
 }
 
-func getFileHistory(vcs Vcs, file string, clock Clock) (*FileHistory, error) {
+func GetFileHistory(vcs Vcs, file string, clock Clock) (*FileHistory, error) {
 	output, err := vcs.Log("--format=%at", "--", file)
 	if err != nil {
 		return nil, err
@@ -179,4 +158,28 @@ func getFileHistory(vcs Vcs, file string, clock Clock) (*FileHistory, error) {
 		history.LastEditionYear = time.Unix(timestamp, 0).Year()
 	}
 	return &history, nil
+}
+
+func merge(changes []FileChange, changes2 []FileChange) []FileChange {
+	set := make(map[FileChange]struct{}, len(changes))
+	for _, change := range changes {
+		set[change] = struct{}{}
+	}
+
+	for _, change := range changes2 {
+		if _, ok := set[change]; !ok {
+			set[change] = struct{}{}
+		}
+	}
+	return keys(set)
+}
+
+func keys(set map[FileChange]struct{}) []FileChange {
+	i := 0
+	result := make([]FileChange, len(set))
+	for key := range set {
+		result[i] = key
+		i++
+	}
+	return result
 }

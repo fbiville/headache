@@ -17,11 +17,28 @@
 package core
 
 import (
-	. "github.com/fbiville/headache/helper"
-	"github.com/fbiville/headache/versioning"
-	"github.com/mattn/go-zglob"
+	"github.com/fbiville/headache/fs"
+	"github.com/fbiville/headache/helper"
+	"github.com/fbiville/headache/vcs"
 	"regexp"
+	"strings"
 )
+
+func DefaultSystemConfiguration() SystemConfiguration {
+	return SystemConfiguration{
+		VersioningClient: &vcs.Client{
+			Vcs: vcs.Git{},
+		},
+		FileSystem: fs.DefaultFileSystem(),
+		Clock:      helper.SystemClock{},
+	}
+}
+
+type SystemConfiguration struct {
+	VersioningClient vcs.VersioningClient
+	FileSystem       fs.FileSystem
+	Clock            helper.Clock
+}
 
 type Configuration struct {
 	HeaderFile   string            `json:"headerFile"`
@@ -31,97 +48,71 @@ type Configuration struct {
 	TemplateData map[string]string `json:"data"`
 }
 
-type configuration struct {
+type ChangeSet struct {
 	HeaderContents string
 	HeaderRegex    *regexp.Regexp
-	vcsChanges     []versioning.FileChange
+	Files          []vcs.FileChange
 }
 
-func ParseConfiguration(config Configuration) (*configuration, error) {
-	return parseConfiguration(config, versioning.GetVcsChanges)
-}
+func ParseConfiguration(
+	config Configuration,
+	sysConfig SystemConfiguration,
+	tracker fs.ExecutionTracker,
+	pathMatcher fs.PathMatcher) (*ChangeSet, error) {
 
-func parseConfiguration(config Configuration,
-	getRevisionChanges func(versioning.Vcs, string) ([]versioning.FileChange, error)) (*configuration, error) {
-
-	contents, err := ParseTemplate(config.HeaderFile, config.TemplateData, ParseCommentStyle(config.CommentStyle))
+	rawLines, err := readLines(config.HeaderFile, sysConfig.FileSystem.FileReader)
+	if err != nil {
+		return nil, err
+	}
+	contents, err := ParseTemplate(rawLines, config.TemplateData, ParseCommentStyle(config.CommentStyle))
 	if err != nil {
 		return nil, err
 	}
 
-	changes, err := getFileChanges(config, getRevisionChanges)
+	changes, err := getFileChanges(config, sysConfig, tracker, pathMatcher)
 	if err != nil {
 		return nil, err
 	}
 
-	return &configuration{
+	return &ChangeSet{
 		HeaderContents: contents.actualContent,
 		HeaderRegex:    contents.detectionRegex,
-		vcsChanges:     changes,
+		Files:          changes,
 	}, nil
 }
 
 func getFileChanges(config Configuration,
-	getRevisionChanges func(versioning.Vcs, string) ([]versioning.FileChange, error)) ([]versioning.FileChange, error) {
-	vcs := versioning.Git{}
-	revision, err := versioning.GetLatestExecutionRevision(vcs)
-	if err != nil {
-		return nil, err
-	}
-	var changes []versioning.FileChange
-	if revision == "" {
-		changes, err = matchAllFiles(config.Includes, config.Excludes)
-	} else {
-		changes, err = matchChangedFiles(revision, config, vcs, getRevisionChanges)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return versioning.AddMetadata(vcs, changes, revision)
-}
+	sysConfig SystemConfiguration,
+	tracker fs.ExecutionTracker,
+	pathMatcher fs.PathMatcher) ([]vcs.FileChange, error) {
 
-func matchAllFiles(includes []string, excludes []string) ([]versioning.FileChange, error) {
-	result := make([]versioning.FileChange, 0)
-	for _, includePattern := range includes {
-		matches, err := zglob.Glob(includePattern)
+	versioningClient := sysConfig.VersioningClient
+	fileSystem := sysConfig.FileSystem
+	revision, err := tracker.GetLastExecutionRevision()
+	if err != nil {
+		return nil, err
+	}
+	var changes []vcs.FileChange
+	if revision == "" {
+		changes, err = pathMatcher.ScanAllFiles(config.Includes, config.Excludes, fileSystem)
 		if err != nil {
 			return nil, err
 		}
-		for _, matchedPath := range matches {
-			if !isExcluded(matchedPath, excludes) {
-				result = append(result, versioning.FileChange{
-					Path: matchedPath,
-				})
-			}
+	} else {
+		fileChanges, err := versioningClient.GetChanges(revision)
+		if err != nil {
+			return nil, err
 		}
-
+		changes = pathMatcher.MatchFiles(fileChanges, config.Includes, config.Excludes, fileSystem)
 	}
-	return result, nil
+	return versioningClient.AddMetadata(changes, sysConfig.Clock)
 }
 
-func matchChangedFiles(sha string, config Configuration, vcs versioning.Vcs,
-	getVersioningChanges func(versioning.Vcs, string) ([]versioning.FileChange, error)) ([]versioning.FileChange, error) {
-	fileChanges, err := getVersioningChanges(vcs, sha)
+func readLines(file string, fileReader fs.FileReader) ([]string, error) {
+	bytes, err := fileReader.Read(file)
 	if err != nil {
 		return nil, err
 	}
-	return filterFiles(fileChanges, config.Includes, config.Excludes), nil
-}
-
-func filterFiles(changes []versioning.FileChange, includes []string, excludes []string) []versioning.FileChange {
-	result := make([]versioning.FileChange, 0)
-	for _, change := range changes {
-		if match(change.Path, includes, excludes) {
-			result = append(result, change)
-		}
-	}
-	return result
-}
-
-func match(path string, includes []string, excludes []string) bool {
-	return Match(path, includes) && !isExcluded(path, excludes)
-}
-
-func isExcluded(path string, excludes []string) bool {
-	return !IsFile(path) || Match(path, excludes)
+	contents := string(bytes)
+	return strings.Split(contents, "\n"), nil
 }

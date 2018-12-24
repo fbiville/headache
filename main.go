@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"flag"
 	. "github.com/fbiville/headache/core"
-	"io/ioutil"
+	"github.com/fbiville/headache/fs"
 )
 
 func main() {
@@ -28,17 +28,24 @@ func main() {
 
 	flag.Parse()
 
-	rawConfiguration := readConfiguration(configFile)
-	configuration, err := ParseConfiguration(rawConfiguration)
+	systemConfig := DefaultSystemConfiguration()
+	rawConfiguration := readConfiguration(configFile, systemConfig)
+	executionTracker := &fs.ExecutionVcsTracker{
+		Versioning: systemConfig.VersioningClient.GetClient(),
+		FileSystem: systemConfig.FileSystem,
+		Clock:      systemConfig.Clock,
+	}
+	matcher := &fs.ZglobPathMatcher{}
+	configuration, err := ParseConfiguration(rawConfiguration, systemConfig, executionTracker, matcher)
 	if err != nil {
 		panic(err)
 	}
-	Run(configuration)
+	Run(configuration, systemConfig.FileSystem)
 }
 
-func readConfiguration(configFile *string) Configuration {
+func readConfiguration(configFile *string, systemConfig SystemConfiguration) Configuration {
 	flag.Parse()
-	file, err := ioutil.ReadFile(*configFile)
+	file, err := systemConfig.FileSystem.FileReader.Read(*configFile)
 	if err != nil {
 		panic(err)
 	}
@@ -49,4 +56,3 @@ func readConfiguration(configFile *string) Configuration {
 	}
 	return result
 }
-

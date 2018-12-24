@@ -2,7 +2,7 @@
   "headerFile": "./license-header.txt",
   "style": "SlashStar",
   "includes": ["**/*.go"],
-  "excludes": ["vendor/**/*", "mocks/**/*"],
+  "excludes": ["vendor/**/*", "*_mocks/**/*"],
   "data": {
     "Owner": "Florent Biville (@fbiville)"
   }

@@ -17,11 +17,8 @@
 package core
 
 import (
-	"bufio"
 	"fmt"
-	. "github.com/fbiville/headache/helper"
 	tpl "html/template"
-	"os"
 	"regexp"
 	"strings"
 )
@@ -31,15 +28,11 @@ type templateResult struct {
 	detectionRegex *regexp.Regexp
 }
 
-func ParseTemplate(file string, data map[string]string, style CommentStyle) (*templateResult, error) {
+func ParseTemplate(rawLines []string, data map[string]string, style CommentStyle) (*templateResult, error) {
 	if err := validateData(data); err != nil {
 		return nil, err
 	}
 	data["Year"] = "{{.Year}}" // template will be parsed a second time, file by file
-	rawLines, err := readLines(file)
-	if err != nil {
-		return nil, err
-	}
 	commentedLines, err := applyComments(rawLines, style)
 	if err != nil {
 		return nil, err
@@ -69,21 +62,6 @@ func validateData(data map[string]string) error {
 			"Please remove it from your configuration")
 	}
 	return nil
-}
-
-func readLines(file string) ([]string, error) {
-	openFile, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer UnsafeClose(openFile)
-
-	lines := make([]string, 0)
-	scanner := bufio.NewScanner(openFile)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	return lines, nil
 }
 
 func applyComments(lines []string, style CommentStyle) ([]string, error) {

@@ -14,361 +14,287 @@
  * limitations under the License.
  */
 
-package core
+package core_test
 
 import (
-	"github.com/fbiville/headache/helper"
-	"github.com/fbiville/headache/versioning"
-	. "github.com/onsi/gomega"
-	"io/ioutil"
-	"math/rand"
+	. "github.com/fbiville/headache/core"
+	"github.com/fbiville/headache/fs"
+	"github.com/fbiville/headache/fs_mocks"
+	"github.com/fbiville/headache/vcs"
 	"os"
 	"regexp"
-	"strconv"
-	"strings"
 	"testing"
-	"time"
 )
 
 func TestHeaderWrite(t *testing.T) {
-	I := NewGomegaWithT(t)
-	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
-	defer helper.UnsafeClose(testWriter.file)
-	defer helper.UnsafeDelete(testWriter.file)
+	fileReader := new(fs_mocks.FileReader)
+	defer fileReader.AssertExpectations(t)
+	fileWriter := new(fs_mocks.FileWriter)
+	defer fileWriter.AssertExpectations(t)
+	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
 
-	newHeader := `// some multi-line header
-// with some text`
-	regex, _ := ComputeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
-	configuration := configuration{
-		HeaderRegex:    regexp.MustCompile(regex),
+	header := "// some multi-line header \n// with some text"
+	fakeFile := new(fs_mocks.File)
+	fileContents := "hello\nworld"
+	fileName := "some-file-1"
+	fileReader.On("Read", fileName).
+		Return([]byte(fileContents), nil).
+		Once()
+	fileWriter.On("Open", fileName, os.O_WRONLY|os.O_TRUNC, os.ModeAppend).
+		Return(fakeFile, nil).
+		Once()
+	fakeFile.On(
+		"Write",
+		[]byte(header+"\n\n"+fileContents)).Return(nil).Once()
+	fakeFile.On("Close").Return(nil).Once()
+
+	configuration := ChangeSet{
+		HeaderRegex:    getRegex("some multi-line header", "with some text"),
+		HeaderContents: header,
+		Files:          []vcs.FileChange{{Path: fileName}},
+	}
+
+	Run(&configuration, fileSystem)
+}
+
+func TestHeaderCommentStyleUpdate(t *testing.T) {
+	fileReader := new(fs_mocks.FileReader)
+	defer fileReader.AssertExpectations(t)
+	fileWriter := new(fs_mocks.FileWriter)
+	defer fileWriter.AssertExpectations(t)
+	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
+
+	oldHeader := "// some multi-line header \n// with some text"
+	newHeader := `/*
+* some multi-line header
+* with some text
+*/`
+	fakeFile := new(fs_mocks.File)
+	commentlessContents := "hello\nworld"
+	fileName := "some-file-1"
+	fileReader.On("Read", fileName).
+		Return([]byte(oldHeader+"\n\n"+commentlessContents), nil).
+		Once()
+	fileWriter.On("Open", fileName, os.O_WRONLY|os.O_TRUNC, os.ModeAppend).
+		Return(fakeFile, nil).
+		Once()
+	fakeFile.On(
+		"Write",
+		[]byte(newHeader+"\n\n"+commentlessContents)).Return(nil).Once()
+	fakeFile.On("Close").Return(nil).Once()
+
+	configuration := ChangeSet{
+		HeaderRegex:    getRegex("some multi-line header", "with some text"),
 		HeaderContents: newHeader,
-		vcsChanges:     []versioning.FileChange{{Path: "../fixtures/hello_world.txt", ReferenceContent: ""}},
+		Files:          []vcs.FileChange{{Path: fileName}},
 	}
 
-	insertInMatchedFiles(&configuration, testWriter)
-
-	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header
-// with some text
-
-hello
-world
----
-`))
-}
-
-func TestHeaderDoesNotWriteTwice(t *testing.T) {
-	I := NewGomegaWithT(t)
-	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
-	defer helper.UnsafeClose(testWriter.file)
-	defer helper.UnsafeDelete(testWriter.file)
-
-	regex, _ := ComputeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
-	sourceFile := "../fixtures/hello_world_with_header.txt"
-	configuration := configuration{
-		HeaderRegex: regexp.MustCompile(regex),
-		HeaderContents: `// some multi-line header
-// with some text`,
-		vcsChanges: []versioning.FileChange{{Path: sourceFile, ReferenceContent: ""}},
-	}
-
-	insertInMatchedFiles(&configuration, testWriter)
-
-	I.Expect(readFile(testWriter.file.Name())).To(Equal(readFile(sourceFile) + "\n---\n"),
-		"it should rewrite the file as is")
-}
-
-func TestHeaderCommentUpdate(t *testing.T) {
-	I := NewGomegaWithT(t)
-	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
-	defer helper.UnsafeClose(testWriter.file)
-	defer helper.UnsafeDelete(testWriter.file)
-
-	regex, _ := ComputeDetectionRegex([]string{"some multi-line header", "with some text"}, map[string]string{})
-	configuration := configuration{
-		HeaderRegex: regexp.MustCompile(regex),
-		HeaderContents: `/*
- * some multi-line header
- * with some text
- */`,
-		vcsChanges: []versioning.FileChange{{Path: "../fixtures/hello_world_with_header.txt", ReferenceContent: ""}},
-	}
-
-	insertInMatchedFiles(&configuration, testWriter)
-
-	I.Expect(readFile(testWriter.file.Name())).To(Equal(`/*
- * some multi-line header
- * with some text
- */
-
-hello
-world
----
-`), "it should rewrite the file with slashstar style")
+	Run(&configuration, fileSystem)
 }
 
 func TestHeaderDataUpdate(t *testing.T) {
-	I := NewGomegaWithT(t)
-	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
-	defer helper.UnsafeClose(testWriter.file)
-	defer helper.UnsafeDelete(testWriter.file)
+	fileReader := new(fs_mocks.FileReader)
+	defer fileReader.AssertExpectations(t)
+	fileWriter := new(fs_mocks.FileWriter)
+	defer fileWriter.AssertExpectations(t)
+	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
 
-	regex, _ := ComputeDetectionRegex([]string{"some multi-line header 2017", "with some text from {{.Company}}"},
-		map[string]string{
-			"Company": "Pairing Corp",
-		})
-	configuration := configuration{
-		HeaderRegex: regexp.MustCompile(regex),
-		HeaderContents: `// some multi-line header 2017
-// with some text from Pairing Corp`,
-		vcsChanges: []versioning.FileChange{{Path: "../fixtures/hello_world_with_parameterized_header.txt", ReferenceContent: ""}},
+	oldHeader := "// some multi-line header \n// with some text from Soloing Inc."
+	newHeader := "// some multi-line header \n// with some text from Pairing Corp."
+	fakeFile := new(fs_mocks.File)
+	commentlessContents := "hello\nworld"
+	fileName := "some-file-1"
+	fileReader.On("Read", fileName).
+		Return([]byte(oldHeader+"\n\n"+commentlessContents), nil).
+		Once()
+	fileWriter.On("Open", fileName, os.O_WRONLY|os.O_TRUNC, os.ModeAppend).
+		Return(fakeFile, nil).
+		Once()
+	fakeFile.On(
+		"Write",
+		[]byte(newHeader+"\n\n"+commentlessContents)).Return(nil).Once()
+	fakeFile.On("Close").Return(nil).Once()
+
+	configuration := ChangeSet{
+		HeaderRegex:    getRegexWithParams(map[string]string{"Company": "Soloing Inc."}, "some multi-line header", "with some text from {{.Company}}"),
+		HeaderContents: newHeader,
+		Files:          []vcs.FileChange{{Path: fileName}},
 	}
 
-	insertInMatchedFiles(&configuration, testWriter)
-
-	file := readFile(testWriter.file.Name())
-	I.Expect(file).To(Equal(`// some multi-line header 2017
-// with some text from Pairing Corp
-
-hello
-world
----
-`))
+	Run(&configuration, fileSystem)
 }
 
-func TestInsertCreationYearAutomatically(t *testing.T) {
-	I := NewGomegaWithT(t)
-	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
-	defer helper.UnsafeClose(testWriter.file)
-	defer helper.UnsafeDelete(testWriter.file)
+func TestAutomaticYearInsertion(t *testing.T) {
+	fileReader := new(fs_mocks.FileReader)
+	defer fileReader.AssertExpectations(t)
+	fileWriter := new(fs_mocks.FileWriter)
+	defer fileWriter.AssertExpectations(t)
+	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
 
-	regex, _ := ComputeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
-		map[string]string{
-			"Year":    "{{.Year}}",
-			"Company": "Pairing Corp",
-		})
-	configuration := configuration{
-		HeaderRegex: regexp.MustCompile(regex),
-		HeaderContents: `// some multi-line header {{.Year}}
-// with some text from Pairing Corp`,
-		vcsChanges: []versioning.FileChange{{
-			Path:             "../fixtures/hello_world.txt",
-			CreationYear:     2022,
-			ReferenceContent: "",
-		}},
+	header := "// some multi-line header from 2022\n// with some text"
+	fakeFile := new(fs_mocks.File)
+	fileContents := "hello\nworld"
+	fileName := "some-file-1"
+	fileReader.On("Read", fileName).
+		Return([]byte(fileContents), nil).
+		Once()
+	fileWriter.On("Open", fileName, os.O_WRONLY|os.O_TRUNC, os.ModeAppend).
+		Return(fakeFile, nil).
+		Once()
+	fakeFile.On(
+		"Write",
+		[]byte(header+"\n\n"+fileContents)).Return(nil).Once()
+	fakeFile.On("Close").Return(nil).Once()
+
+	configuration := ChangeSet{
+		HeaderRegex:    getRegex("some multi-line header from {{.Year}}", "with some text"),
+		HeaderContents: header,
+		Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2022}},
 	}
 
-	insertInMatchedFiles(&configuration, testWriter)
-
-	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header 2022
-// with some text from Pairing Corp
-
-hello
-world
----
-`))
+	Run(&configuration, fileSystem)
 }
 
-func TestInsertCreationAndLastEditionYearsAutomatically(t *testing.T) {
-	I := NewGomegaWithT(t)
-	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
-	defer helper.UnsafeClose(testWriter.file)
-	defer helper.UnsafeDelete(testWriter.file)
+func TestYearIntervalAutomaticInsertion(t *testing.T) {
+	fileReader := new(fs_mocks.FileReader)
+	defer fileReader.AssertExpectations(t)
+	fileWriter := new(fs_mocks.FileWriter)
+	defer fileWriter.AssertExpectations(t)
+	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
 
-	regex, _ := ComputeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
-		map[string]string{
-			"Year":    "{{.Year}}",
-			"Company": "Pairing Corp",
-		})
-	configuration := configuration{
-		HeaderRegex: regexp.MustCompile(regex),
-		HeaderContents: `// some multi-line header {{.Year}}
-// with some text from Pairing Corp`,
-		vcsChanges: []versioning.FileChange{{
-			Path:             "../fixtures/hello_world.txt",
-			CreationYear:     2022,
-			LastEditionYear:  2034,
-			ReferenceContent: "",
-		}},
+	header := "// some multi-line header from 2022-2034\n// with some text"
+	fakeFile := new(fs_mocks.File)
+	fileContents := "hello\nworld"
+	fileName := "some-file-1"
+	fileReader.On("Read", fileName).
+		Return([]byte(fileContents), nil).
+		Once()
+	fileWriter.On("Open", fileName, os.O_WRONLY|os.O_TRUNC, os.ModeAppend).
+		Return(fakeFile, nil).
+		Once()
+	fakeFile.On(
+		"Write",
+		[]byte(header+"\n\n"+fileContents)).Return(nil).Once()
+	fakeFile.On("Close").Return(nil).Once()
+
+	configuration := ChangeSet{
+		HeaderRegex:    getRegex("some multi-line header from {{.Year}}", "with some text"),
+		HeaderContents: header,
+		Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2022, LastEditionYear: 2034}},
 	}
 
-	insertInMatchedFiles(&configuration, testWriter)
-
-	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header 2022-2034
-// with some text from Pairing Corp
-
-hello
-world
----
-`))
+	Run(&configuration, fileSystem)
 }
 
-func TestDoesNotInsertLastEditionYearWhenEqualToCreationYear(t *testing.T) {
-	I := NewGomegaWithT(t)
-	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
-	defer helper.UnsafeClose(testWriter.file)
-	defer helper.UnsafeDelete(testWriter.file)
+func TestEndYearSkipWhenEqualToStartYear(t *testing.T) {
+	fileReader := new(fs_mocks.FileReader)
+	defer fileReader.AssertExpectations(t)
+	fileWriter := new(fs_mocks.FileWriter)
+	defer fileWriter.AssertExpectations(t)
+	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
 
-	regex, _ := ComputeDetectionRegex([]string{"some multi-line header {{.Year}}", "with some text from {{.Company}}"},
-		map[string]string{
-			"Year":    "{{.Year}}",
-			"Company": "Pairing Corp",
-		})
-	configuration := configuration{
-		HeaderRegex: regexp.MustCompile(regex),
-		HeaderContents: `// some multi-line header {{.Year}}
-// with some text from Pairing Corp`,
-		vcsChanges: []versioning.FileChange{{
-			Path:             "../fixtures/hello_world.txt",
-			CreationYear:     2022,
-			LastEditionYear:  2022,
-			ReferenceContent: "",
-		}},
+	header := "// some multi-line header from 2022\n// with some text"
+	fakeFile := new(fs_mocks.File)
+	fileContents := "hello\nworld"
+	fileName := "some-file-1"
+	fileReader.On("Read", fileName).
+		Return([]byte(fileContents), nil).
+		Once()
+	fileWriter.On("Open", fileName, os.O_WRONLY|os.O_TRUNC, os.ModeAppend).
+		Return(fakeFile, nil).
+		Once()
+	fakeFile.On(
+		"Write",
+		[]byte(header+"\n\n"+fileContents)).Return(nil).Once()
+	fakeFile.On("Close").Return(nil).Once()
+
+	configuration := ChangeSet{
+		HeaderRegex:    getRegex("some multi-line header from {{.Year}}", "with some text"),
+		HeaderContents: header,
+		Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2022, LastEditionYear: 2022}},
 	}
 
-	insertInMatchedFiles(&configuration, testWriter)
-
-	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header 2022
-// with some text from Pairing Corp
-
-hello
-world
----
-`))
-}
-
-func TestHeaderDryRunOnSeveralFiles(t *testing.T) {
-	I := NewGomegaWithT(t)
-	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
-	defer helper.UnsafeClose(testWriter.file)
-	defer helper.UnsafeDelete(testWriter.file)
-
-	regex, _ := ComputeDetectionRegex([]string{"some header {{.Year}}"},
-		map[string]string{
-			"Year": "{{.Year}}",
-		})
-	insertInMatchedFiles(&configuration{
-		HeaderRegex:    regexp.MustCompile(regex),
-		HeaderContents: "// some header {{.Year}}",
-		vcsChanges: []versioning.FileChange{{
-			Path:             "../fixtures/hello_world.txt",
-			CreationYear:     2022,
-			LastEditionYear:  2022,
-			ReferenceContent: "",
-		}, {
-			Path:             "../fixtures/bonjour_world.txt",
-			CreationYear:     2019,
-			LastEditionYear:  2021,
-			ReferenceContent: "",
-		}},
-	}, testWriter)
-
-	s := readFile(testWriter.file.Name())
-	I.Expect(s).To(Equal(`// some header 2022
-
-hello
-world
----
-// some header 2019-2021
-
-bonjour
-le world
----
-`))
-
+	Run(&configuration, fileSystem)
 }
 
 func TestSimilarHeaderReplacement(t *testing.T) {
-	I := NewGomegaWithT(t)
-	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
-	defer helper.UnsafeClose(testWriter.file)
-	defer helper.UnsafeDelete(testWriter.file)
+	fileReader := new(fs_mocks.FileReader)
+	defer fileReader.AssertExpectations(t)
+	fileWriter := new(fs_mocks.FileWriter)
+	defer fileWriter.AssertExpectations(t)
+	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
 
-	regex, _ := ComputeDetectionRegex([]string{"some header {{.Year}} and stuff"},
-		map[string]string{
-			"Year": "{{.Year}}",
-		})
-	insertInMatchedFiles(&configuration{
-		HeaderRegex:    regexp.MustCompile(regex),
-		HeaderContents: "// some header {{.Year}} and stuff",
-		vcsChanges: []versioning.FileChange{{
-			Path:             "../fixtures/hello_world_similar.txt",
-			CreationYear:     2022,
-			LastEditionYear:  2022,
-			ReferenceContent: "",
-		}},
-	}, testWriter)
+	oldHeader := `/*
+ *   Some Header 2022 -   2023 and stuff .
+ *
+ */`
+	newHeader := "// some header 2022-2024 and stuff"
+	fakeFile := new(fs_mocks.File)
+	fileContents := "hello\nworld"
+	fileName := "some-file-1"
+	fileReader.On("Read", fileName).
+		Return([]byte(oldHeader+"\n\n"+fileContents), nil).
+		Once()
+	fileWriter.On("Open", fileName, os.O_WRONLY|os.O_TRUNC, os.ModeAppend).
+		Return(fakeFile, nil).
+		Once()
+	fakeFile.On(
+		"Write",
+		[]byte(newHeader+"\n\n"+fileContents)).Return(nil).Once()
+	fakeFile.On("Close").Return(nil).Once()
 
-	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some header 2022 and stuff
+	configuration := ChangeSet{
+		HeaderRegex:    getRegexWithParams(map[string]string{"Year": "2022"}, "some header {{.Year}} and stuff"),
+		HeaderContents: newHeader,
+		Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2022, LastEditionYear: 2024}},
+	}
 
-hello
-world
----
-`))
+	Run(&configuration, fileSystem)
 }
 
-func TestPreserveYear(t *testing.T) {
-	I := NewGomegaWithT(t)
-	testWriter := temporaryFile("headache-test-run", os.O_RDWR|os.O_CREATE)
-	defer helper.UnsafeClose(testWriter.file)
-	defer helper.UnsafeDelete(testWriter.file)
+func TestPreserveEarlierThanVersionedYear(t *testing.T) {
+	fileReader := new(fs_mocks.FileReader)
+	defer fileReader.AssertExpectations(t)
+	fileWriter := new(fs_mocks.FileWriter)
+	defer fileWriter.AssertExpectations(t)
+	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
 
-	regex, _ := ComputeDetectionRegex([]string{"Copyright {{.Year}} {{.Company}}"},
-		map[string]string{
+	oldHeader := "// Copyright 2014 ACME"
+	newHeader := "// Copyright 2014-2022 ACME"
+	fakeFile := new(fs_mocks.File)
+	fileContents := "hello\nworld"
+	fileName := "some-file-1"
+	fileReader.On("Read", fileName).
+		Return([]byte(oldHeader+"\n\n"+fileContents), nil).
+		Once()
+	fileWriter.On("Open", fileName, os.O_WRONLY|os.O_TRUNC, os.ModeAppend).
+		Return(fakeFile, nil).
+		Once()
+	fakeFile.On(
+		"Write",
+		[]byte(newHeader+"\n\n"+fileContents)).Return(nil).Once()
+	fakeFile.On("Close").Return(nil).Once()
+
+	configuration := ChangeSet{
+		HeaderRegex: getRegexWithParams(map[string]string{
 			"Year":    "{{.Year}}",
 			"Company": "ACME",
-		})
-	insertInMatchedFiles(&configuration{
-		HeaderRegex:    regexp.MustCompile(regex),
-		HeaderContents: "// some header {{.Year}} {{.Company}}",
-		vcsChanges: []versioning.FileChange{{
-			Path:             "../fixtures/hello_world_2014.txt",
-			CreationYear:     2016,
-			LastEditionYear:  2022,
-			ReferenceContent: "",
-		}},
-	}, testWriter)
+		}, "Copyright {{.Year}} {{.Company}}"),
+		HeaderContents: newHeader,
+		Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2016, LastEditionYear: 2022}},
+	}
 
-	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some header 2014-2022 
-
-Hello world!!
----
-`))
+	Run(&configuration, fileSystem)
 }
 
-func readFile(file string) string {
-	bytes, err := ioutil.ReadFile(file)
+func getRegex(headerLines ...string) *regexp.Regexp {
+	return getRegexWithParams(map[string]string{}, headerLines...)
+}
+
+func getRegexWithParams(params map[string]string, headerLines ...string) *regexp.Regexp {
+	regex, err := ComputeDetectionRegex(headerLines, params)
 	if err != nil {
 		panic(err)
 	}
-	return string(bytes)
-}
-
-type AppendingFile struct {
-	file *os.File
-}
-
-// open-close are noops because they are managed within the tests
-func (osw *AppendingFile) Open(name string, mask int, permissions os.FileMode) (*os.File, error) {
-	return osw.file, nil
-}
-func (*AppendingFile) Close(file *os.File) {
-	_, err := file.WriteString("\n---\n")
-	if err != nil {
-		panic(err)
-	}
-}
-
-func temporaryFile(name string, umask int) *AppendingFile {
-	rand.Seed(time.Now().UTC().UnixNano())
-	tempDirectory := os.TempDir()
-	if !strings.HasSuffix(tempDirectory, "/") {
-		tempDirectory += "/"
-	}
-	file, err := os.OpenFile(tempDirectory+name+strconv.Itoa(rand.Int()), umask, 0644)
-	if err != nil {
-		panic(err)
-	}
-	return &AppendingFile{
-		file: file,
-	}
+	return regexp.MustCompile(regex)
 }

@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package helper
+package helper_test
 
 import (
+	. "github.com/fbiville/headache/helper"
 	"testing"
 	"testing/quick"
 )

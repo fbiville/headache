@@ -18,26 +18,21 @@ package core
 
 import (
 	"fmt"
-	"github.com/fbiville/headache/helper"
-	"github.com/fbiville/headache/versioning"
+	"github.com/fbiville/headache/fs"
+	"github.com/fbiville/headache/vcs"
 	tpl "html/template"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-type VcsChangeGetter func(versioning.Vcs, string, string) (error, []versioning.FileChange)
+type VcsChangeGetter func(vcs.Vcs, string, string) (error, []vcs.FileChange)
 
-func Run(config *configuration) {
-	insertInMatchedFiles(config, &helper.OsFileWriter{})
-}
-
-func insertInMatchedFiles(config *configuration, fileWriter helper.FileWriter) {
-	for _, change := range config.vcsChanges {
+func Run(config *ChangeSet, fileSystem fs.FileSystem) {
+	for _, change := range config.Files {
 		path := change.Path
-		bytes, err := ioutil.ReadFile(path)
+		bytes, err := fileSystem.FileReader.Read(path)
 		if err != nil {
 			panic(err)
 		}
@@ -55,11 +50,11 @@ func insertInMatchedFiles(config *configuration, fileWriter helper.FileWriter) {
 			panic(err)
 		}
 		newContents := append([]byte(fmt.Sprintf("%s%s", finalHeaderContent, "\n\n")), []byte(fileContents)...)
-		writeToFile(fileWriter, path, newContents)
+		writeToFile(fileSystem.FileWriter, path, newContents)
 	}
 }
 
-func insertYears(template string, change versioning.FileChange, existingHeader string) (string, error) {
+func insertYears(template string, change vcs.FileChange, existingHeader string) (string, error) {
 	t, err := tpl.New("header-second-pass").Parse(template)
 	if err != nil {
 		return "", err
@@ -78,7 +73,7 @@ func insertYears(template string, change versioning.FileChange, existingHeader s
 	return builder.String(), nil
 }
 
-func computeCopyrightYears(change versioning.FileChange, existingHeader string) (string, error) {
+func computeCopyrightYears(change vcs.FileChange, existingHeader string) (string, error) {
 	regex := regexp.MustCompile(`(\d{4})(?:\s*-\s*(\d{4}))?`)
 	matches := regex.FindStringSubmatch(existingHeader)
 	creationYear := change.CreationYear
@@ -97,13 +92,13 @@ func computeCopyrightYears(change versioning.FileChange, existingHeader string) 
 	return year, nil
 }
 
-func writeToFile(fileWriter helper.FileWriter, path string, newContents []byte) {
+func writeToFile(fileWriter fs.FileWriter, path string, newContents []byte) {
 	file, err := fileWriter.Open(path, os.O_WRONLY|os.O_TRUNC, os.ModeAppend)
 	if err != nil {
 		panic(err)
 	}
-	defer fileWriter.Close(file)
-	_, err = file.Write(newContents)
+	defer fs.UnsafeClose(file)
+	err = file.Write(newContents)
 	if err != nil {
 		panic(err)
 	}

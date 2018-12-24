@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-package versioning
+package vcs_test
 
 import (
-	"github.com/fbiville/headache/mocks"
+	. "github.com/fbiville/headache/vcs"
+	"github.com/fbiville/headache/vcs_mocks"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/gomega"
 	"testing"
@@ -26,15 +27,15 @@ import (
 
 var (
 	vcs     Vcs
-	vcsMock *mocks.Vcs
+	vcsMock *vcs_mocks.Vcs
 )
 
 func TestCommittedChanges(t *testing.T) {
 	I := NewGomegaWithT(t)
 	controller := gomock.NewController(t)
 	defer controller.Finish()
-	vcs = new(mocks.Vcs)
-	vcsMock = vcs.(*mocks.Vcs)
+	vcs = new(vcs_mocks.Vcs)
+	vcsMock = vcs.(*vcs_mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
 	vcsMock.On("Diff", "--name-status", "origin/master..HEAD").Return(`M	.gitignore
 M	configuration.go
@@ -44,7 +45,7 @@ R099	line_comment.go	core/line_comment.go
 A	license-header.txt
 `, nil)
 
-	changes, err := getCommittedChanges(vcs, "origin/master")
+	changes, err := GetCommittedChanges(vcs, "origin/master")
 
 	I.Expect(err).To(BeNil())
 	I.Expect(changes).To(Equal([]FileChange{
@@ -60,8 +61,8 @@ func TestUncommittedFiles(t *testing.T) {
 	I := NewGomegaWithT(t)
 	controller := gomock.NewController(t)
 	defer controller.Finish()
-	vcs = new(mocks.Vcs)
-	vcsMock = vcs.(*mocks.Vcs)
+	vcs = new(vcs_mocks.Vcs)
+	vcsMock = vcs.(*vcs_mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
 	vcsMock.On("Status", "--porcelain").Return(` M Gopkg.lock
  D main.go
@@ -69,7 +70,7 @@ func TestUncommittedFiles(t *testing.T) {
 ?? git.go
 `, nil)
 
-	changes, err := getUncommittedChanges(vcs)
+	changes, err := GetUncommittedChanges(vcs)
 
 	I.Expect(err).To(BeNil())
 	I.Expect(changes).To(Equal([]FileChange{
@@ -83,12 +84,12 @@ func TestNoUncommittedFiles(t *testing.T) {
 	I := NewGomegaWithT(t)
 	controller := gomock.NewController(t)
 	defer controller.Finish()
-	vcs = new(mocks.Vcs)
-	vcsMock = vcs.(*mocks.Vcs)
+	vcs = new(vcs_mocks.Vcs)
+	vcsMock = vcs.(*vcs_mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
 	vcsMock.On("Status", "--porcelain").Return("", nil)
 
-	changes, err := getUncommittedChanges(vcs)
+	changes, err := GetUncommittedChanges(vcs)
 
 	I.Expect(err).To(BeNil())
 	I.Expect(changes).To(Equal([]FileChange{}))
@@ -106,8 +107,8 @@ func TestGetFileDates(t *testing.T) {
 	I := NewGomegaWithT(t)
 	controller := gomock.NewController(t)
 	defer controller.Finish()
-	vcs = new(mocks.Vcs)
-	vcsMock = vcs.(*mocks.Vcs)
+	vcs = new(vcs_mocks.Vcs)
+	vcsMock = vcs.(*vcs_mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
 	vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(`1537974554
 1537973963
@@ -117,7 +118,7 @@ func TestGetFileDates(t *testing.T) {
 1499817600
 `, nil)
 
-	history, err := getFileHistory(vcs, "somefile.go", FakeTime{})
+	history, err := GetFileHistory(vcs, "somefile.go", FakeTime{})
 
 	I.Expect(err).To(BeNil())
 	I.Expect(history.CreationYear).To(Equal(2017))
@@ -130,12 +131,12 @@ func TestGetFileDatesWithoutDates(t *testing.T) {
 	I := NewGomegaWithT(t)
 	controller := gomock.NewController(t)
 	defer controller.Finish()
-	vcs = new(mocks.Vcs)
-	vcsMock = vcs.(*mocks.Vcs)
+	vcs = new(vcs_mocks.Vcs)
+	vcsMock = vcs.(*vcs_mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
 	vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(``, nil)
 
-	history, err := getFileHistory(vcs, "somefile.go", FakeTime{timestamp: fakeNow})
+	history, err := GetFileHistory(vcs, "somefile.go", FakeTime{timestamp: fakeNow})
 
 	I.Expect(err).To(BeNil())
 	I.Expect(history.CreationYear).To(Equal(1986))
@@ -146,13 +147,13 @@ func TestGetFileDatesWithOnlyOneDate(t *testing.T) {
 	I := NewGomegaWithT(t)
 	controller := gomock.NewController(t)
 	defer controller.Finish()
-	vcs = new(mocks.Vcs)
-	vcsMock = vcs.(*mocks.Vcs)
+	vcs = new(vcs_mocks.Vcs)
+	vcsMock = vcs.(*vcs_mocks.Vcs)
 	defer vcsMock.AssertExpectations(t)
 	vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(`405561600
 `, nil)
 
-	history, err := getFileHistory(vcs, "somefile.go", FakeTime{timestamp: fakeNow})
+	history, err := GetFileHistory(vcs, "somefile.go", FakeTime{timestamp: fakeNow})
 
 	I.Expect(err).To(BeNil())
 	I.Expect(history.CreationYear).To(Equal(1982))
