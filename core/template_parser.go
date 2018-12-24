@@ -31,7 +31,7 @@ type templateResult struct {
 	detectionRegex *regexp.Regexp
 }
 
-func parseTemplate(file string, data map[string]string, style CommentStyle) (*templateResult, error) {
+func ParseTemplate(file string, data map[string]string, style CommentStyle) (*templateResult, error) {
 	if err := validateData(data); err != nil {
 		return nil, err
 	}

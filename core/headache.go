@@ -34,10 +34,6 @@ func Run(config *configuration) {
 	insertInMatchedFiles(config, &helper.OsFileWriter{})
 }
 
-func doRun(config *configuration, writer helper.FileWriter) {
-	insertInMatchedFiles(config, writer)
-}
-
 func insertInMatchedFiles(config *configuration, fileWriter helper.FileWriter) {
 	for _, change := range config.vcsChanges {
 		path := change.Path

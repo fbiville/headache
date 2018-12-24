@@ -45,7 +45,7 @@ func TestHeaderWrite(t *testing.T) {
 		vcsChanges:     []versioning.FileChange{{Path: "../fixtures/hello_world.txt", ReferenceContent: ""}},
 	}
 
-	doRun(&configuration, testWriter)
+	insertInMatchedFiles(&configuration, testWriter)
 
 	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header
 // with some text
@@ -71,7 +71,7 @@ func TestHeaderDoesNotWriteTwice(t *testing.T) {
 		vcsChanges: []versioning.FileChange{{Path: sourceFile, ReferenceContent: ""}},
 	}
 
-	doRun(&configuration, testWriter)
+	insertInMatchedFiles(&configuration, testWriter)
 
 	I.Expect(readFile(testWriter.file.Name())).To(Equal(readFile(sourceFile) + "\n---\n"),
 		"it should rewrite the file as is")
@@ -93,7 +93,7 @@ func TestHeaderCommentUpdate(t *testing.T) {
 		vcsChanges: []versioning.FileChange{{Path: "../fixtures/hello_world_with_header.txt", ReferenceContent: ""}},
 	}
 
-	doRun(&configuration, testWriter)
+	insertInMatchedFiles(&configuration, testWriter)
 
 	I.Expect(readFile(testWriter.file.Name())).To(Equal(`/*
  * some multi-line header
@@ -123,7 +123,7 @@ func TestHeaderDataUpdate(t *testing.T) {
 		vcsChanges: []versioning.FileChange{{Path: "../fixtures/hello_world_with_parameterized_header.txt", ReferenceContent: ""}},
 	}
 
-	doRun(&configuration, testWriter)
+	insertInMatchedFiles(&configuration, testWriter)
 
 	file := readFile(testWriter.file.Name())
 	I.Expect(file).To(Equal(`// some multi-line header 2017
@@ -157,7 +157,7 @@ func TestInsertCreationYearAutomatically(t *testing.T) {
 		}},
 	}
 
-	doRun(&configuration, testWriter)
+	insertInMatchedFiles(&configuration, testWriter)
 
 	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header 2022
 // with some text from Pairing Corp
@@ -191,7 +191,7 @@ func TestInsertCreationAndLastEditionYearsAutomatically(t *testing.T) {
 		}},
 	}
 
-	doRun(&configuration, testWriter)
+	insertInMatchedFiles(&configuration, testWriter)
 
 	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header 2022-2034
 // with some text from Pairing Corp
@@ -225,7 +225,7 @@ func TestDoesNotInsertLastEditionYearWhenEqualToCreationYear(t *testing.T) {
 		}},
 	}
 
-	doRun(&configuration, testWriter)
+	insertInMatchedFiles(&configuration, testWriter)
 
 	I.Expect(readFile(testWriter.file.Name())).To(Equal(`// some multi-line header 2022
 // with some text from Pairing Corp
@@ -246,7 +246,7 @@ func TestHeaderDryRunOnSeveralFiles(t *testing.T) {
 		map[string]string{
 			"Year": "{{.Year}}",
 		})
-	doRun(&configuration{
+	insertInMatchedFiles(&configuration{
 		HeaderRegex:    regexp.MustCompile(regex),
 		HeaderContents: "// some header {{.Year}}",
 		vcsChanges: []versioning.FileChange{{
@@ -287,7 +287,7 @@ func TestSimilarHeaderReplacement(t *testing.T) {
 		map[string]string{
 			"Year": "{{.Year}}",
 		})
-	doRun(&configuration{
+	insertInMatchedFiles(&configuration{
 		HeaderRegex:    regexp.MustCompile(regex),
 		HeaderContents: "// some header {{.Year}} and stuff",
 		vcsChanges: []versioning.FileChange{{
@@ -317,7 +317,7 @@ func TestPreserveYear(t *testing.T) {
 			"Year":    "{{.Year}}",
 			"Company": "ACME",
 		})
-	doRun(&configuration{
+	insertInMatchedFiles(&configuration{
 		HeaderRegex:    regexp.MustCompile(regex),
 		HeaderContents: "// some header {{.Year}} {{.Company}}",
 		vcsChanges: []versioning.FileChange{{

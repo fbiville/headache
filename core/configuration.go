@@ -44,8 +44,7 @@ func ParseConfiguration(config Configuration) (*configuration, error) {
 func parseConfiguration(config Configuration,
 	getRevisionChanges func(versioning.Vcs, string) ([]versioning.FileChange, error)) (*configuration, error) {
 
-	contents, err := parseTemplate(config.HeaderFile, config.TemplateData,
-		ParseCommentStyle(config.CommentStyle))
+	contents, err := ParseTemplate(config.HeaderFile, config.TemplateData, ParseCommentStyle(config.CommentStyle))
 	if err != nil {
 		return nil, err
 	}
@@ -126,4 +125,3 @@ func match(path string, includes []string, excludes []string) bool {
 func isExcluded(path string, excludes []string) bool {
 	return !IsFile(path) || Match(path, excludes)
 }
-
