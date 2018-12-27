@@ -25,6 +25,7 @@ import (
 	"github.com/fbiville/headache/vcs_mocks"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/gomega"
+	"strings"
 	"testing"
 )
 
@@ -51,8 +52,8 @@ func TestConfigurationInitWithSlashSlashStyle(t *testing.T) {
 	includes := []string{"../fixtures/hello_*.go"}
 	excludes := []string{}
 	resultingChanges := []FileChange{initialChanges[0]}
-	fileReader.On("Read", "some-header").
-		Return([]byte("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license"), nil)
+	tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
+		Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license"), nil)
 	tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
 	versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
 	pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
@@ -102,8 +103,8 @@ func TestConfigurationInitWithSlashStarStyle(t *testing.T) {
 	includes := []string{"../fixtures/hello_*.go"}
 	excludes := []string{}
 	resultingChanges := []FileChange{initialChanges[0]}
-	fileReader.On("Read", "some-header").
-		Return([]byte("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license"), nil)
+	tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
+		Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license"), nil)
 	tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
 	versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
 	pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
@@ -157,8 +158,8 @@ func TestHeaderDetectionRegexComputation(t *testing.T) {
 	includes := []string{"../fixtures/hello_*.go"}
 	excludes := []string{}
 	resultingChanges := []FileChange{initialChanges[0]}
-	fileReader.On("Read", "some-header").
-		Return([]byte("Copyright {{.Year}} {{.Owner}}"), nil)
+	tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
+		Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}"), nil)
 	tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
 	versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
 	pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
@@ -216,8 +217,8 @@ func TestFailOnReservedYearParameter(t *testing.T) {
 
 	includes := []string{"../fixtures/hello_*.go"}
 	excludes := []string{}
-	fileReader.On("Read", "some-header").
-		Return([]byte("Copyright {{.Year}}"), nil)
+	tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
+		Return(unchangedHeaderContents("Copyright {{.Year}}"), nil)
 
 	systemConfiguration := core.SystemConfiguration{
 		FileSystem:       fileSystem,
@@ -238,6 +239,14 @@ func TestFailOnReservedYearParameter(t *testing.T) {
 	I.Expect(changeSet).To(BeNil())
 	I.Expect(err).To(MatchError("Year is a reserved parameter and is automatically computed.\n" +
 		"Please remove it from your configuration"))
+}
+
+func unchangedHeaderContents(str string) fs.HeaderContents {
+	lines := strings.Split(str, "\n")
+	return fs.HeaderContents{
+		PreviousLines: lines,
+		CurrentLines:  lines,
+	}
 }
 
 func onlyPaths(changes []FileChange) []FileChange {

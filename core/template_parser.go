@@ -18,6 +18,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/fbiville/headache/fs"
 	tpl "html/template"
 	"regexp"
 	"strings"
@@ -28,12 +29,12 @@ type templateResult struct {
 	detectionRegex *regexp.Regexp
 }
 
-func ParseTemplate(rawLines []string, data map[string]string, style CommentStyle) (*templateResult, error) {
+func ParseTemplate(headerContents fs.HeaderContents, data map[string]string, style CommentStyle) (*templateResult, error) {
 	if err := validateData(data); err != nil {
 		return nil, err
 	}
 	data["Year"] = "{{.Year}}" // template will be parsed a second time, file by file
-	commentedLines, err := applyComments(rawLines, style)
+	commentedLines, err := applyComments(headerContents.CurrentLines, style)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +47,7 @@ func ParseTemplate(rawLines []string, data map[string]string, style CommentStyle
 	if err != nil {
 		return nil, err
 	}
-	regex, err := ComputeDetectionRegex(rawLines, data)
+	regex, err := ComputeDetectionRegex(headerContents.PreviousLines, data)
 	if err != nil {
 		return nil, err
 	}

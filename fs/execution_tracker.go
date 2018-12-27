@@ -21,18 +21,53 @@ import (
 	"github.com/fbiville/headache/helper"
 	"github.com/fbiville/headache/vcs"
 	"os"
+	"strings"
 )
 
 type ExecutionTracker interface {
+	ReadLinesAtLastExecutionRevision(path string) (HeaderContents, error)
 	GetLastExecutionRevision() (string, error)
+}
+
+type HeaderContents struct {
+	PreviousLines []string
+	CurrentLines  []string
 }
 
 type ExecutionVcsTracker struct {
 	Versioning vcs.Vcs
 	FileSystem FileSystem
-	Clock helper.Clock
+	Clock      helper.Clock
 }
 
+// returns lines of the specified file at the revision of the last execution of headache
+// if headache was never executed, it returns the current contents of the file
+func (evt *ExecutionVcsTracker) ReadLinesAtLastExecutionRevision(path string) (HeaderContents, error) {
+	bytes, err := evt.FileSystem.FileReader.Read(path)
+	if err != nil {
+		return HeaderContents{}, err
+	}
+	currentContents := strings.Split(string(bytes), "\n")
+	revision, err := evt.GetLastExecutionRevision()
+	if err != nil {
+		return HeaderContents{}, err
+	}
+	if revision == "" {
+		return HeaderContents{
+			PreviousLines: currentContents,
+			CurrentLines:  currentContents}, nil
+	}
+	contents, err := evt.Versioning.ShowContentAtRevision(path, revision)
+	if err != nil {
+		return HeaderContents{}, err
+	}
+	return HeaderContents{
+		PreviousLines: strings.Split(contents, "\n"),
+		CurrentLines:  currentContents,
+	}, nil
+}
+
+// returns the revision associated with the last execution of headache
 func (evt *ExecutionVcsTracker) GetLastExecutionRevision() (string, error) {
 	versioning := evt.Versioning
 	root, err := versioning.Root()

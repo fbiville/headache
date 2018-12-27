@@ -21,7 +21,6 @@ import (
 	"github.com/fbiville/headache/helper"
 	"github.com/fbiville/headache/vcs"
 	"regexp"
-	"strings"
 )
 
 func DefaultSystemConfiguration() SystemConfiguration {
@@ -60,11 +59,15 @@ func ParseConfiguration(
 	tracker fs.ExecutionTracker,
 	pathMatcher fs.PathMatcher) (*ChangeSet, error) {
 
-	rawLines, err := readLines(config.HeaderFile, sysConfig.FileSystem.FileReader)
+	// TODO: config.HeaderFile may have changed since last run - this may cause e.g. to not find the previous header file!
+	headerContents, err := tracker.ReadLinesAtLastExecutionRevision(config.HeaderFile)
 	if err != nil {
 		return nil, err
 	}
-	contents, err := ParseTemplate(rawLines, config.TemplateData, ParseCommentStyle(config.CommentStyle))
+
+	// TODO: config.TemplateData may have changed since last run -- this may change the detection regex!
+	// note: comment style does not matter as the detection regex is designed to be insensitive to the style in use
+	contents, err := ParseTemplate(headerContents, config.TemplateData, ParseCommentStyle(config.CommentStyle))
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +96,7 @@ func getFileChanges(config Configuration,
 		return nil, err
 	}
 	var changes []vcs.FileChange
+	// TODO: centralize this check between here and ExecutionTracker#ReadLinesAtLastExecutionRevision
 	if revision == "" {
 		changes, err = pathMatcher.ScanAllFiles(config.Includes, config.Excludes, fileSystem)
 		if err != nil {
@@ -106,13 +110,4 @@ func getFileChanges(config Configuration,
 		changes = pathMatcher.MatchFiles(fileChanges, config.Includes, config.Excludes, fileSystem)
 	}
 	return versioningClient.AddMetadata(changes, sysConfig.Clock)
-}
-
-func readLines(file string, fileReader fs.FileReader) ([]string, error) {
-	bytes, err := fileReader.Read(file)
-	if err != nil {
-		return nil, err
-	}
-	contents := string(bytes)
-	return strings.Split(contents, "\n"), nil
 }
