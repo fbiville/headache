@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://fbiville.github.io/headache/schema.json",
+  "title": "Headache configuration",
+  "description": "Schema for headache configuration",
+  "type": "object",
+  "properties": {
+    "headerFile": {
+      "description": "Location of the license file with the contents to insert to source files",
+      "type": "string"
+    },
+    "style": {
+      "description": "Comment style to apply",
+      "type": "string",
+      "enum": [
+        "SlashStar",
+        "SlashSlash"
+      ]
+    },
+    "includes": {
+      "description": "Pattern to include source files",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "excludes": {
+      "description": "Pattern to exclude source files",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "data": {
+      "description": "Template parameters referenced in `headerFile` as `{{.NameOfParameter}}`",
+      "type": "object",
+      "properties": {
+        "Year": {
+          "$comment": "Year is a reserved property and cannot be used",
+          "not": {}
+        }
+      }
+    }
+  },
+  "required": [
+    "headerFile",
+    "style",
+    "includes"
+  ]
+}

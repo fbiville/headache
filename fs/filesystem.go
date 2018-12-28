@@ -18,6 +18,7 @@ package fs
 
 import (
 	"io/ioutil"
+	"net/http"
 	"os"
 )
 
@@ -78,6 +79,7 @@ func (of *OsFile) Close() error {
 }
 
 type FileReader interface {
+	http.FileSystem
 	Read(path string) ([]byte, error)
 	Stat(path string) (os.FileInfo, error)
 }
@@ -89,6 +91,9 @@ func (*OsFileReader) Read(path string) ([]byte, error) {
 }
 func (*OsFileReader) Stat(path string) (os.FileInfo, error) {
 	return os.Stat(path)
+}
+func (*OsFileReader) Open(name string) (http.File, error) {
+	return os.Open(name)
 }
 
 func UnsafeClose(file File) {

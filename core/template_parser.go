@@ -17,7 +17,6 @@
 package core
 
 import (
-	"fmt"
 	"github.com/fbiville/headache/fs"
 	tpl "html/template"
 	"regexp"
@@ -30,10 +29,7 @@ type templateResult struct {
 }
 
 func ParseTemplate(headerContents fs.HeaderContents, data map[string]string, style CommentStyle) (*templateResult, error) {
-	if err := validateData(data); err != nil {
-		return nil, err
-	}
-	data["Year"] = "{{.Year}}" // template will be parsed a second time, file by file
+	data["Year"] = "{{.Year}}" // injects reserved parameter into template, which will be parsed again, file by file
 	commentedLines, err := applyComments(headerContents.CurrentLines, style)
 	if err != nil {
 		return nil, err
@@ -55,14 +51,6 @@ func ParseTemplate(headerContents fs.HeaderContents, data map[string]string, sty
 		actualContent:  builder.String(),
 		detectionRegex: regexp.MustCompile(regex),
 	}, nil
-}
-
-func validateData(data map[string]string) error {
-	if _, ok := data["Year"]; ok {
-		return fmt.Errorf("Year is a reserved parameter and is automatically computed.\n" +
-			"Please remove it from your configuration")
-	}
-	return nil
 }
 
 func applyComments(lines []string, style CommentStyle) ([]string, error) {

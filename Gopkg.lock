@@ -77,6 +77,29 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:f4e5276a3b356f4692107047fd2890f2fe534f4feeb6b1fd2f6dfbd87f1ccf54"
+  name = "github.com/xeipuuv/gojsonpointer"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "4e3ac2762d5f479393488629ee9370b50873b3a6"
+
+[[projects]]
+  branch = "master"
+  digest = "1:dc6a6c28ca45d38cfce9f7cb61681ee38c5b99ec1425339bfc1e1a7ba769c807"
+  name = "github.com/xeipuuv/gojsonreference"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "bd5ef7bd5415a7ac448318e64f11a24cd21e594b"
+
+[[projects]]
+  digest = "1:41bd4de0a27c0b7affef4083bc8f86501b4c7d891f95809a0fb758a23eb5e78f"
+  name = "github.com/xeipuuv/gojsonschema"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "v1.0"
+
+[[projects]]
+  branch = "master"
   digest = "1:908ac65130b45626b3724705bbb8183a785054fb9b7284c93803918bb81e813b"
   name = "golang.org/x/net"
   packages = [
@@ -130,6 +153,7 @@
     "github.com/mattn/go-zglob",
     "github.com/onsi/gomega",
     "github.com/stretchr/testify/mock",
+    "github.com/xeipuuv/gojsonschema",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

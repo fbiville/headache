@@ -21,6 +21,7 @@ import (
 	"flag"
 	. "github.com/fbiville/headache/core"
 	"github.com/fbiville/headache/fs"
+	jsonsch "github.com/xeipuuv/gojsonschema"
 )
 
 func main() {
@@ -29,10 +30,11 @@ func main() {
 	flag.Parse()
 
 	systemConfig := DefaultSystemConfiguration()
-	rawConfiguration := readConfiguration(configFile, systemConfig)
+	fileSystem := systemConfig.FileSystem
+	rawConfiguration := readConfiguration(configFile, fileSystem.FileReader)
 	executionTracker := &fs.ExecutionVcsTracker{
 		Versioning: systemConfig.VersioningClient.GetClient(),
-		FileSystem: systemConfig.FileSystem,
+		FileSystem: fileSystem,
 		Clock:      systemConfig.Clock,
 	}
 	matcher := &fs.ZglobPathMatcher{}
@@ -40,12 +42,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	Run(configuration, systemConfig.FileSystem)
+	Run(configuration, fileSystem)
 }
 
-func readConfiguration(configFile *string, systemConfig SystemConfiguration) Configuration {
-	flag.Parse()
-	file, err := systemConfig.FileSystem.FileReader.Read(*configFile)
+func readConfiguration(configFile *string, reader fs.FileReader) Configuration {
+	validateConfiguration(reader, configFile)
+
+	file, err := reader.Read(*configFile)
 	if err != nil {
 		panic(err)
 	}
@@ -55,4 +58,23 @@ func readConfiguration(configFile *string, systemConfig SystemConfiguration) Con
 		panic(err)
 	}
 	return result
+}
+
+func validateConfiguration(reader fs.FileReader, configFile *string) {
+	jsonSchemaValidator := JsonSchemaValidator{
+		Schema:     loadSchema(),
+		FileReader: reader,
+	}
+	validationError := jsonSchemaValidator.Validate("file://" + *configFile)
+	if validationError != nil {
+		panic(validationError)
+	}
+}
+
+func loadSchema() *jsonsch.Schema {
+	schema, err := jsonsch.NewSchema(jsonsch.NewReferenceLoader("file://docs/schema.json"))
+	if err != nil {
+		panic(err)
+	}
+	return schema
 }

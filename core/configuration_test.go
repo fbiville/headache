@@ -196,51 +196,6 @@ func TestHeaderDetectionRegexComputation(t *testing.T) {
 		"Regex should match contents with different data and comment style")
 }
 
-func TestFailOnReservedYearParameter(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
-	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
-	versioningClient := new(vcs_mocks.VersioningClient)
-	defer versioningClient.AssertExpectations(t)
-	tracker := new(fs_mocks.ExecutionTracker)
-	defer tracker.AssertExpectations(t)
-	pathMatcher := new(fs_mocks.PathMatcher)
-	defer pathMatcher.AssertExpectations(t)
-	clock := new(helper_mocks.Clock)
-	defer clock.AssertExpectations(t)
-
-	includes := []string{"../fixtures/hello_*.go"}
-	excludes := []string{}
-	tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
-		Return(unchangedHeaderContents("Copyright {{.Year}}"), nil)
-
-	systemConfiguration := core.SystemConfiguration{
-		FileSystem:       fileSystem,
-		Clock:            clock,
-		VersioningClient: versioningClient,
-	}
-	configuration := core.Configuration{
-		HeaderFile:   "some-header",
-		CommentStyle: "SlashStar",
-		Includes:     includes,
-		Excludes:     excludes,
-		TemplateData: map[string]string{
-			"Year": "oopsie - reserved parameter!",
-		}}
-
-	changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
-
-	I.Expect(changeSet).To(BeNil())
-	I.Expect(err).To(MatchError("Year is a reserved parameter and is automatically computed.\n" +
-		"Please remove it from your configuration"))
-}
-
 func unchangedHeaderContents(str string) fs.HeaderContents {
 	lines := strings.Split(str, "\n")
 	return fs.HeaderContents{
