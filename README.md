@@ -43,11 +43,16 @@ limitations under the License.
 
 ## Settings
 
+`headache` relies on the emerging [JSON Schema standard](https://json-schema.org/) to validate its configuration.
+`headache` schema is defined [here](https://fbiville.github.io/headache/schema.json).
+
+In layman's terms, here are all the possible settings:
+
 Setting            | Type                    | Definition                                             |
 | ---------------- |:----------------------: | -----------------------------------------------------: |
-| `headerFile`     | string                  | Path to the parameterized license header. Parameters are referenced with the following syntax: {{.PARAMETER-NAME}}               |
-| `style`          | string                  | One of: `SlashStar` (`/* ... */`), `SlashSlash` (`// ...`) |
-| `includes`       | array of strings        | File globs to include (`*` and `**` are supported)     |
+| `headerFile`     | string                  | **[required]** Path to the parameterized license header. Parameters are referenced with the following syntax: {{.PARAMETER-NAME}}               |
+| `style`          | string                  | **[required]** One of: `SlashStar` (`/* ... */`), `SlashSlash` (`// ...`) |
+| `includes`       | array of strings        | **[required, min size=1]** File globs to include (`*` and `**` are supported)     |
 | `excludes`       | array of strings        | File globs to exclude (`*` and `**` are supported)     |
 | `data`           | map of string to string | Key-value pairs, matching the parameters used in `headerFile`.<br>Please note that `{{.Year}}` is a reserved parameter and will automatically be computed based on the files versioning information.  |
 
@@ -63,7 +68,7 @@ All you have to do then is:
 ```
 
 As a result, source files will be changed and `.headache-run` will be generated to keep track of `headache` last execution.
-This file must be versioned as well.
+This file must be versioned along with the source file changes.
 
 ## Run with custom configuration
 
