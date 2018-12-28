@@ -1,7 +1,7 @@
 # Header management
 
 `headache` manages license headers.
-It is biased towards Golang but should work on any other language (provided a compatible code style is implemented).
+It is biased towards Golang but should work on any other language (provided a compatible code comment style is implemented).
 
 ## Build status
 
