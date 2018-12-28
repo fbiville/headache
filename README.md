@@ -7,9 +7,9 @@ It is biased towards Golang but should work on any other language (provided a co
 
 [![Build Status](https://travis-ci.org/fbiville/headache.svg?branch=master)](https://travis-ci.org/fbiville/headache)
 
-## Example
+## Quick start
 
-By default, `headache` looks for a file named `headache.json` in the current directory:
+By default, `headache` looks for a configuration file named `headache.json` in the directory in which it is invoked:
 
 ```json
 {
@@ -23,7 +23,7 @@ By default, `headache` looks for a file named `headache.json` in the current dir
 }
 ```
 
-`license-header.txt`:
+`license-header.txt` (note the absence of `Year` parameter in the configuration file):
 ```
 Copyright {{.Year}} {{.Owner}}
 
@@ -40,8 +40,54 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
+### Run
 
-## Settings
+All you have to do then is:
+```shell
+ $ go get -u github.com/fbiville/headache
+ $ $(GOBIN)/headache
+```
+
+As a result, source files will be changed and `.headache-run` will be generated to keep track of `headache` last execution.
+This file must be versioned along with the source file changes.
+
+### Run with custom configuration
+
+Alternatively, the configuration file can be explicitly provided:
+```shell
+ $ go get -u github.com/fbiville/headache
+ $ $(GOBIN)/headache --configuration /path/to/configuration.json
+```
+
+## Reference documentation
+
+### Approach
+
+`headache` approach to copyright is well explained in [this stackoverflow answer](https://stackoverflow.com/a/2391555/277128), 
+read it first!
+
+Now that you read this, here are two important points:
+
+ - Copyright years have to be updated when a significant change occurs.
+ 
+There is, to the author knowledge, no automatic solution to distinguish a trivial
+change from a significant one.
+
+Based on this premise, `headache` will process all files matching the configuration
+and that have been changed since its last execution.
+`headache` will then compute the copyright year, file by file, from their available versioning information (typically 
+by retrieving the relevant dates from Git commits).
+
+**It is up to the project maintainer to discard the generated changes if they are not relevant.**
+
+ - > The [first] date on the [copyright] notice establishes how far back the claim is made.
+ 
+This claim could predate any commit associated to the file (imagine a file copied from project
+to project for years).
+
+`headache` will never overwrite the start date of the copyright year if it finds one.
+
+### Configuration
 
 `headache` relies on the emerging [JSON Schema standard](https://json-schema.org/) to validate its configuration.
 `headache` schema is defined [here](https://fbiville.github.io/headache/schema.json).
@@ -57,24 +103,4 @@ Setting            | Type                    | Definition                       
 | `data`           | map of string to string | Key-value pairs, matching the parameters used in `headerFile`.<br>Please note that `{{.Year}}` is a reserved parameter and will automatically be computed based on the files versioning information.  |
 
 
-## Run
-
-By default, a file named `headache.json` must be present in the current directory.
-
-All you have to do then is:
-```shell
- $ go get -u github.com/fbiville/headache
- $ $(GOBIN)/headache
-```
-
-As a result, source files will be changed and `.headache-run` will be generated to keep track of `headache` last execution.
-This file must be versioned along with the source file changes.
-
-## Run with custom configuration
-
-Alternatively, the configuration file can be explicitly provided:
-```shell
- $ go get -u github.com/fbiville/headache
- $ $(GOBIN)/headache --configuration /path/to/configuration.json
-```
 
