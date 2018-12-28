@@ -19,6 +19,7 @@ package core
 import (
 	"fmt"
 	tpl "html/template"
+	"log"
 	"regexp"
 	"strings"
 )
@@ -68,7 +69,8 @@ func ParseCommentStyle(str string) CommentStyle {
 			return styles[key]
 		}
 	}
-	panic("Unexpected comment style, must be one of: " + strings.Join(keys, ","))
+	log.Fatalf("headache configuration error, unexpected comment style\n\tmust be one of: " + strings.Join(keys, ","))
+	return nil
 }
 
 func ComputeDetectionRegex(lines []string, data map[string]string) (string, error) {

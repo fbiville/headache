@@ -21,6 +21,7 @@ import (
 	"github.com/fbiville/headache/fs"
 	"github.com/fbiville/headache/vcs"
 	tpl "html/template"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -34,7 +35,7 @@ func Run(config *ChangeSet, fileSystem fs.FileSystem) {
 		path := change.Path
 		bytes, err := fileSystem.FileReader.Read(path)
 		if err != nil {
-			panic(err)
+			log.Fatalf("headache execution error, cannot read file %s\n\t%v", path, err)
 		}
 
 		fileContents := string(bytes)
@@ -47,7 +48,7 @@ func Run(config *ChangeSet, fileSystem fs.FileSystem) {
 
 		finalHeaderContent, err := insertYears(config.HeaderContents, change, existingHeader)
 		if err != nil {
-			panic(err)
+			log.Fatalf("headache execution error, cannot parse header for file %s\n\t%v", path, err)
 		}
 		newContents := append([]byte(fmt.Sprintf("%s%s", finalHeaderContent, "\n\n")), []byte(fileContents)...)
 		writeToFile(fileSystem.FileWriter, path, newContents)
@@ -95,11 +96,11 @@ func computeCopyrightYears(change vcs.FileChange, existingHeader string) (string
 func writeToFile(fileWriter fs.FileWriter, path string, newContents []byte) {
 	file, err := fileWriter.Open(path, os.O_WRONLY|os.O_TRUNC, os.ModeAppend)
 	if err != nil {
-		panic(err)
+		log.Fatalf("headache execution error, cannot open file %s\n\t%v", path, err)
 	}
 	defer fs.UnsafeClose(file)
 	err = file.Write(newContents)
 	if err != nil {
-		panic(err)
+		log.Fatalf("headache execution error, cannot write to file %s\n\t%v", path, err)
 	}
 }

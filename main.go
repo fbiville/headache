@@ -22,6 +22,7 @@ import (
 	. "github.com/fbiville/headache/core"
 	"github.com/fbiville/headache/fs"
 	jsonsch "github.com/xeipuuv/gojsonschema"
+	"log"
 )
 
 func main() {
@@ -40,7 +41,7 @@ func main() {
 	matcher := &fs.ZglobPathMatcher{}
 	configuration, err := ParseConfiguration(rawConfiguration, systemConfig, executionTracker, matcher)
 	if err != nil {
-		panic(err)
+		log.Fatalf("headache configuration error, cannot parse\n\t%v\n", err)
 	}
 	Run(configuration, fileSystem)
 }
@@ -50,12 +51,12 @@ func readConfiguration(configFile *string, reader fs.FileReader) Configuration {
 
 	file, err := reader.Read(*configFile)
 	if err != nil {
-		panic(err)
+		log.Fatalf("headache configuration error, cannot read file:\n\t%v", err)
 	}
 	result := Configuration{}
 	err = json.Unmarshal(file, &result)
 	if err != nil {
-		panic(err)
+		log.Fatalf("headache configuration error, cannot unmarshall JSON:\n\t%v", err)
 	}
 	return result
 }
@@ -67,14 +68,14 @@ func validateConfiguration(reader fs.FileReader, configFile *string) {
 	}
 	validationError := jsonSchemaValidator.Validate("file://" + *configFile)
 	if validationError != nil {
-		panic(validationError)
+		log.Fatalf("headache configuration error, validation failed\n\t%s\n", validationError)
 	}
 }
 
 func loadSchema() *jsonsch.Schema {
 	schema, err := jsonsch.NewSchema(jsonsch.NewReferenceLoader("file://docs/schema.json"))
 	if err != nil {
-		panic(err)
+		log.Fatalf("headache configuration error, cannot load JSON schema\n\t%v\n", err)
 	}
 	return schema
 }
