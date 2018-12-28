@@ -355,19 +355,6 @@ func givenNoTrackerFile(vcs *vcs_mocks.Vcs, fileReader *fs_mocks.FileReader, fil
 	vcs.On("LatestRevision", "fake-root/.headache-run").Return("", nil)
 }
 
-type FakeFileInfo struct {
-	FileMode os.FileMode
-}
-
-func (*FakeFileInfo) Name() string       { panic("not implemented") }
-func (*FakeFileInfo) Size() int64        { panic("not implemented") }
-func (*FakeFileInfo) ModTime() time.Time { panic("not implemented") }
-func (*FakeFileInfo) IsDir() bool        { panic("not implemented") }
-func (*FakeFileInfo) Sys() interface{}   { panic("not implemented") }
-func (ffi *FakeFileInfo) Mode() os.FileMode {
-	return ffi.FileMode
-}
-
 type FixedClock struct{}
 
 func (*FixedClock) Now() time.Time {

@@ -1,7 +1,0 @@
-/*
- *   Some Header 2022 and stuff .
- *
- */
-
-hello
-world

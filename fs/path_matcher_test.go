@@ -18,8 +18,11 @@ package fs_test
 
 import (
 	. "github.com/fbiville/headache/fs"
+	"github.com/fbiville/headache/fs_mocks"
 	"github.com/fbiville/headache/vcs"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
+	"os"
 	"testing"
 )
 
@@ -27,7 +30,9 @@ func TestMatch(t *testing.T) {
 	I := NewGomegaWithT(t)
 	includes := []string{"../fixtures/*.txt"}
 	excludes := []string{"../fixtures/*_with_header.txt"}
-	fileSystem := FileSystem{FileReader: &OsFileReader{}}
+	fileReader := new(fs_mocks.FileReader)
+	fileReader.On("Stat", mock.Anything).Return(&FakeFileInfo{FileMode: 0777}, nil)
+	fileSystem := FileSystem{FileReader: fileReader}
 	matcher := &ZglobPathMatcher{}
 
 	matchedChanges := []vcs.FileChange{{Path: "../fixtures/bonjour_world.txt"}}
@@ -38,7 +43,9 @@ func TestMatch(t *testing.T) {
 
 func TestMatchOnlyFiles(t *testing.T) {
 	I := NewGomegaWithT(t)
-	fileSystem := FileSystem{FileReader: &OsFileReader{}}
+	fileReader := new(fs_mocks.FileReader)
+	fileReader.On("Stat", mock.Anything).Return(&FakeFileInfo{FileMode: os.ModeDir}, nil)
+	fileSystem := FileSystem{FileReader: fileReader}
 	matcher := &ZglobPathMatcher{}
 
 	I.Expect(matcher.MatchFiles([]vcs.FileChange{{Path: "../fixtures"}}, []string{"../fixture*"}, []string{}, fileSystem)).To(BeEmpty())

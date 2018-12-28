@@ -1,5 +1,0 @@
-// some multi-line header
-// with some text
-
-hello
-world

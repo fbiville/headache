@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 type FileSystem struct {
@@ -102,4 +103,19 @@ func UnsafeClose(file File) {
 	if err != nil {
 		log.Fatalf("headache execution error, cannot close file %v\n\t%v", file, err)
 	}
+}
+
+
+// test utility
+type FakeFileInfo struct {
+	FileMode os.FileMode
+}
+
+func (*FakeFileInfo) Name() string       { panic("not implemented") }
+func (*FakeFileInfo) Size() int64        { panic("not implemented") }
+func (*FakeFileInfo) ModTime() time.Time { panic("not implemented") }
+func (*FakeFileInfo) IsDir() bool        { panic("not implemented") }
+func (*FakeFileInfo) Sys() interface{}   { panic("not implemented") }
+func (ffi *FakeFileInfo) Mode() os.FileMode {
+	return ffi.FileMode
 }
