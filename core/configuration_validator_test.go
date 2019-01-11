@@ -20,156 +20,110 @@ import (
 	"github.com/fbiville/headache/core"
 	"github.com/fbiville/headache/fs_mocks"
 	"github.com/golang/mock/gomock"
+	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	json "github.com/xeipuuv/gojsonschema"
 	"io"
 	"net/http"
 	"os"
-	"testing"
 )
 
-func TestAcceptsValidMinimalConfiguration(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileReader.On("Open", "docs.json").
-		Return(inMemoryFile(`{"headerFile": "some-file.txt", "style": "SlashStar", "includes": ["**/*.go"]}`), nil)
-	validator := core.JsonSchemaValidator{
-		FileReader: fileReader,
-		Schema:     schemaFrom(json.NewReferenceLoader("file://../docs/schema.json")),
-	}
+var _ = Describe("Configuration validator", func() {
+	var (
+		t          GinkgoTInterface
+		controller *gomock.Controller
+		fileReader *fs_mocks.FileReader
+		validator  core.JsonSchemaValidator
+	)
 
-	validationError := validator.Validate("file://docs.json")
+	BeforeEach(func() {
+		t = GinkgoT()
+		controller = gomock.NewController(t)
+		fileReader = new(fs_mocks.FileReader)
+		validator = core.JsonSchemaValidator{
+			FileReader: fileReader,
+			Schema:     schemaFrom(json.NewReferenceLoader("file://../docs/schema.json")),
+		}
+	})
 
-	I.Expect(validationError).To(BeNil())
-}
-func TestAcceptsValidConfiguration(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileReader.On("Open", "docs.json").
-		Return(inMemoryFile(`{"headerFile": "some-file.txt", "style": "SlashStar", "includes": ["**/*.go"], "data": {"FooBar": true}}`), nil)
-	validator := core.JsonSchemaValidator{
-		FileReader: fileReader,
-		Schema:     schemaFrom(json.NewReferenceLoader("file://../docs/schema.json")),
-	}
+	AfterEach(func() {
+		fileReader.AssertExpectations(t)
+		controller.Finish()
+	})
 
-	validationError := validator.Validate("file://docs.json")
+	It("accepts minimal valid configuration", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-file.txt", "style": "SlashStar", "includes": ["**/*.go"]}`), nil)
 
-	I.Expect(validationError).To(BeNil())
-}
+		validationError := validator.Validate("file://docs.json")
 
-func TestRejectsConfigurationWithMissingHeaderFile(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileReader.On("Open", "docs.json").
-		Return(inMemoryFile(`{"style": "SlashStar", "includes": ["**/*.go"]}`), nil)
-	validator := core.JsonSchemaValidator{
-		FileReader: fileReader,
-		Schema:     schemaFrom(json.NewReferenceLoader("file://../docs/schema.json")),
-	}
+		Expect(validationError).To(BeNil())
+	})
 
-	validationError := validator.Validate("file://docs.json")
+	It("accepts valid configuration", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-file.txt", "style": "SlashStar", "includes": ["**/*.go"], "data": {"FooBar": true}}`), nil)
 
-	I.Expect(validationError.Error()).To(HaveSuffix("headerFile is required"))
-}
+		validationError := validator.Validate("file://docs.json")
 
-func TestRejectsConfigurationWithMissingCommentStyle(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileReader.On("Open", "docs.json").
-		Return(inMemoryFile(`{"headerFile": "some-header.txt", "includes": ["**/*.go"]}`), nil)
-	validator := core.JsonSchemaValidator{
-		FileReader: fileReader,
-		Schema:     schemaFrom(json.NewReferenceLoader("file://../docs/schema.json")),
-	}
+		Expect(validationError).To(BeNil())
+	})
 
-	validationError := validator.Validate("file://docs.json")
+	It("rejects configuration with missing header file", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"style": "SlashStar", "includes": ["**/*.go"]}`), nil)
 
-	I.Expect(validationError.Error()).To(HaveSuffix("style is required"))
-}
+		validationError := validator.Validate("file://docs.json")
 
-func TestRejectsConfigurationWithInvalidCommentStyle(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileReader.On("Open", "docs.json").
-		Return(inMemoryFile(`{"headerFile": "some-header.txt", "style": "invalid", includes": ["**/*.go"]}`), nil)
-	validator := core.JsonSchemaValidator{
-		FileReader: fileReader,
-		Schema:     schemaFrom(json.NewReferenceLoader("file://../docs/schema.json")),
-	}
+		Expect(validationError.Error()).To(HaveSuffix("headerFile is required"))
+	})
 
-	validationError := validator.Validate("file://docs.json")
+	It("rejects configuration with missing comment style", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-header.txt", "includes": ["**/*.go"]}`), nil)
 
-	I.Expect(validationError).To(MatchError("invalid character 'i' looking for beginning of object key string"))
-}
+		validationError := validator.Validate("file://docs.json")
 
-func TestRejectsConfigurationWithMissingIncludes(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileReader.On("Open", "docs.json").
-		Return(inMemoryFile(`{"headerFile": "some-header.txt", "style": "SlashStar"}`), nil)
-	validator := core.JsonSchemaValidator{
-		FileReader: fileReader,
-		Schema:     schemaFrom(json.NewReferenceLoader("file://../docs/schema.json")),
-	}
+		Expect(validationError.Error()).To(HaveSuffix("style is required"))
+	})
 
-	validationError := validator.Validate("file://docs.json")
+	It("rejects configuration with invalid comment style", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-header.txt", "style": "invalid", includes": ["**/*.go"]}`), nil)
 
-	I.Expect(validationError.Error()).To(HaveSuffix("includes is required"))
-}
+		validationError := validator.Validate("file://docs.json")
 
-func TestRejectsConfigurationWithEmptyIncludes(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileReader.On("Open", "docs.json").
-		Return(inMemoryFile(`{"headerFile": "some-header.txt", "style": "SlashSlash", "includes": []}`), nil)
-	validator := core.JsonSchemaValidator{
-		FileReader: fileReader,
-		Schema:     schemaFrom(json.NewReferenceLoader("file://../docs/schema.json")),
-	}
+		Expect(validationError).To(MatchError("invalid character 'i' looking for beginning of object key string"))
+	})
 
-	validationError := validator.Validate("file://docs.json")
+	It("rejects configuration with missing includes", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-header.txt", "style": "SlashStar"}`), nil)
 
-	I.Expect(validationError.Error()).To(HaveSuffix("Array must have at least 1 items"))
-}
+		validationError := validator.Validate("file://docs.json")
 
-func TestRejectsConfigurationWithReservedYearParameter(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileReader.On("Open", "docs.json").
-		Return(inMemoryFile(`{"headerFile": "some-header.txt", "style": "SlashSlash", "includes": ["**/*.*"], "data": {"Year": 2019}}`), nil)
-	validator := core.JsonSchemaValidator{
-		FileReader: fileReader,
-		Schema:     schemaFrom(json.NewReferenceLoader("file://../docs/schema.json")),
-	}
+		Expect(validationError.Error()).To(HaveSuffix("includes is required"))
+	})
 
-	validationError := validator.Validate("file://docs.json")
+	It("rejects configuration with empty includes", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-header.txt", "style": "SlashSlash", "includes": []}`), nil)
 
-	I.Expect(validationError.Error()).To(HaveSuffix("Year is a reserved data parameter and cannot be used"))
-}
+		validationError := validator.Validate("file://docs.json")
+
+		Expect(validationError.Error()).To(HaveSuffix("Array must have at least 1 items"))
+	})
+
+	It("rejects configuration with reserved year parameter", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-header.txt", "style": "SlashSlash", "includes": ["**/*.*"], "data": {"Year": 2019}}`), nil)
+
+		validationError := validator.Validate("file://docs.json")
+
+		Expect(validationError.Error()).To(HaveSuffix("Year is a reserved data parameter and cannot be used"))
+	})
+
+})
 
 func schemaFrom(loader json.JSONLoader) *json.Schema {
 	schema, err := json.NewSchema(loader)

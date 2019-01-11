@@ -24,177 +24,146 @@ import (
 	. "github.com/fbiville/headache/vcs"
 	"github.com/fbiville/headache/vcs_mocks"
 	"github.com/golang/mock/gomock"
+	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"strings"
-	"testing"
 )
 
-func TestConfigurationInitWithSlashSlashStyle(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
+var _ = Describe("Configuration parser", func() {
+	var (
+		t                   GinkgoTInterface
+		controller          *gomock.Controller
+		fileReader          *fs_mocks.FileReader
+		fileWriter          *fs_mocks.FileWriter
+		fileSystem          fs.FileSystem
+		versioningClient    *vcs_mocks.VersioningClient
+		tracker             *fs_mocks.ExecutionTracker
+		pathMatcher         *fs_mocks.PathMatcher
+		clock               *helper_mocks.Clock
+		initialChanges      []FileChange
+		includes            []string
+		excludes            []string
+		resultingChanges    []FileChange
+		systemConfiguration core.SystemConfiguration
+	)
 
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
-	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
-	versioningClient := new(vcs_mocks.VersioningClient)
-	defer versioningClient.AssertExpectations(t)
-	tracker := new(fs_mocks.ExecutionTracker)
-	defer tracker.AssertExpectations(t)
-	pathMatcher := new(fs_mocks.PathMatcher)
-	defer pathMatcher.AssertExpectations(t)
-	clock := new(helper_mocks.Clock)
-	defer clock.AssertExpectations(t)
+	BeforeEach(func() {
+		t = GinkgoT()
+		controller = gomock.NewController(t)
+		fileReader = new(fs_mocks.FileReader)
+		fileWriter = new(fs_mocks.FileWriter)
+		fileSystem = fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
+		versioningClient = new(vcs_mocks.VersioningClient)
+		tracker = new(fs_mocks.ExecutionTracker)
+		pathMatcher = new(fs_mocks.PathMatcher)
+		clock = new(helper_mocks.Clock)
+		initialChanges = []FileChange{{Path: "hello-world.go"}, {Path: "license.txt"}}
+		includes = []string{"../fixtures/hello_*.go"}
+		excludes = []string{}
+		resultingChanges = []FileChange{initialChanges[0]}
+		systemConfiguration = core.SystemConfiguration{
+			FileSystem:       fileSystem,
+			Clock:            clock,
+			VersioningClient: versioningClient,
+		}
+	})
 
-	initialChanges := []FileChange{{Path: "hello-world.go"}, {Path: "license.txt"}}
-	includes := []string{"../fixtures/hello_*.go"}
-	excludes := []string{}
-	resultingChanges := []FileChange{initialChanges[0]}
-	tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
-		Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license"), nil)
-	tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
-	versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
-	pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
-	versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
+	AfterEach(func() {
+		fileReader.AssertExpectations(t)
+		fileWriter.AssertExpectations(t)
+		versioningClient.AssertExpectations(t)
+		tracker.AssertExpectations(t)
+		pathMatcher.AssertExpectations(t)
+		clock.AssertExpectations(t)
+		controller.Finish()
+	})
 
-	systemConfiguration := core.SystemConfiguration{
-		FileSystem:       fileSystem,
-		Clock:            clock,
-		VersioningClient: versioningClient,
-	}
-	configuration := core.Configuration{
-		HeaderFile:   "some-header",
-		CommentStyle: "SlashSlash",
-		Includes:     includes,
-		Excludes:     excludes,
-		TemplateData: map[string]string{
-			"Owner": "ACME Labs",
-		}}
+	It("pre-computes the final configuration", func() {
+		tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
+			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license"), nil)
+		tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
+		versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
+		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
+		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-	changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+		configuration := core.Configuration{
+			HeaderFile:   "some-header",
+			CommentStyle: "SlashSlash",
+			Includes:     includes,
+			Excludes:     excludes,
+			TemplateData: map[string]string{
+				"Owner": "ACME Labs",
+			}}
 
-	I.Expect(err).To(BeNil())
-	I.Expect(changeSet.HeaderContents).To(Equal("// Copyright {{.Year}} ACME Labs\n//\n// Some fictional license"))
-	I.Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
-}
+		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
 
-func TestConfigurationInitWithSlashStarStyle(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
+		Expect(err).To(BeNil())
+		Expect(changeSet.HeaderContents).To(Equal("// Copyright {{.Year}} ACME Labs\n//\n// Some fictional license"))
+		Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
+	})
 
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
-	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
-	versioningClient := new(vcs_mocks.VersioningClient)
-	defer versioningClient.AssertExpectations(t)
-	tracker := new(fs_mocks.ExecutionTracker)
-	defer tracker.AssertExpectations(t)
-	pathMatcher := new(fs_mocks.PathMatcher)
-	defer pathMatcher.AssertExpectations(t)
-	clock := new(helper_mocks.Clock)
-	defer clock.AssertExpectations(t)
+	It("pre-computes the header contents with a different comment style", func() {
+		tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
+			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license"), nil)
+		tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
+		versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
+		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
+		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-	initialChanges := []FileChange{{Path: "hello-world.go"}, {Path: "license.txt"}}
-	includes := []string{"../fixtures/hello_*.go"}
-	excludes := []string{}
-	resultingChanges := []FileChange{initialChanges[0]}
-	tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
-		Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license"), nil)
-	tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
-	versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
-	pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
-	versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
+		configuration := core.Configuration{
+			HeaderFile:   "some-header",
+			CommentStyle: "SlashStar",
+			Includes:     includes,
+			Excludes:     excludes,
+			TemplateData: map[string]string{
+				"Owner": "ACME Labs",
+			}}
 
-	systemConfiguration := core.SystemConfiguration{
-		FileSystem:       fileSystem,
-		Clock:            clock,
-		VersioningClient: versioningClient,
-	}
-	configuration := core.Configuration{
-		HeaderFile:   "some-header",
-		CommentStyle: "SlashStar",
-		Includes:     includes,
-		Excludes:     excludes,
-		TemplateData: map[string]string{
-			"Owner": "ACME Labs",
-		}}
+		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
 
-	changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
-
-	I.Expect(err).To(BeNil())
-	I.Expect(changeSet.HeaderContents).To(Equal(`/*
+		Expect(err).To(BeNil())
+		Expect(changeSet.HeaderContents).To(Equal(`/*
  * Copyright {{.Year}} ACME Labs
  *
  * Some fictional license
  */`))
-	I.Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
-}
+		Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
+	})
 
-func TestHeaderDetectionRegexComputation(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
+	It("pre-computes a regex that allows to detect headers", func() {
+		tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
+			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}"), nil)
+		tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
+		versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
+		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
+		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
-	fileSystem := fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
-	versioningClient := new(vcs_mocks.VersioningClient)
-	defer versioningClient.AssertExpectations(t)
-	tracker := new(fs_mocks.ExecutionTracker)
-	defer tracker.AssertExpectations(t)
-	pathMatcher := new(fs_mocks.PathMatcher)
-	defer pathMatcher.AssertExpectations(t)
-	clock := new(helper_mocks.Clock)
-	defer clock.AssertExpectations(t)
+		configuration := core.Configuration{
+			HeaderFile:   "some-header",
+			CommentStyle: "SlashStar",
+			Includes:     includes,
+			Excludes:     excludes,
+			TemplateData: map[string]string{
+				"Owner": "ACME Labs",
+			}}
 
-	initialChanges := []FileChange{{Path: "hello-world.go"}, {Path: "license.txt"}}
-	includes := []string{"../fixtures/hello_*.go"}
-	excludes := []string{}
-	resultingChanges := []FileChange{initialChanges[0]}
-	tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
-		Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}"), nil)
-	tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
-	versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
-	pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
-	versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
+		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
 
-	systemConfiguration := core.SystemConfiguration{
-		FileSystem:       fileSystem,
-		Clock:            clock,
-		VersioningClient: versioningClient,
-	}
-	configuration := core.Configuration{
-		HeaderFile:   "some-header",
-		CommentStyle: "SlashStar",
-		Includes:     includes,
-		Excludes:     excludes,
-		TemplateData: map[string]string{
-			"Owner": "ACME Labs",
-		}}
-
-	changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
-
-	regex := changeSet.HeaderRegex
-	I.Expect(err).To(BeNil())
-	I.Expect(changeSet.HeaderContents).To(Equal(`/*
+		regex := changeSet.HeaderRegex
+		Expect(err).To(BeNil())
+		Expect(changeSet.HeaderContents).To(Equal(`/*
  * Copyright {{.Year}} ACME Labs
  */`))
-	I.Expect(regex.MatchString(changeSet.HeaderContents)).To(BeTrue(), "Regex should match contents")
-	I.Expect(regex.MatchString("// Copyright 2018 ACME Labs")).To(BeTrue(),
-		"Regex should match contents with different comment style")
-	I.Expect(regex.MatchString(`/*
+		Expect(regex.MatchString(changeSet.HeaderContents)).To(BeTrue(), "Regex should match contents")
+		Expect(regex.MatchString("// Copyright 2018 ACME Labs")).To(BeTrue(),
+			"Regex should match contents with different comment style")
+		Expect(regex.MatchString(`/*
  * Copyright 2018-2042 ACME World corporation
  */`)).To(BeTrue(), "Regex should match contents with different data")
-	I.Expect(regex.MatchString("// Copyright 2009-2012 ACME!")).To(BeTrue(),
-		"Regex should match contents with different data and comment style")
-}
+		Expect(regex.MatchString("// Copyright 2009-2012 ACME!")).To(BeTrue(),
+			"Regex should match contents with different data and comment style")
+	})
+})
 
 func unchangedHeaderContents(str string) fs.HeaderContents {
 	lines := strings.Split(str, "\n")

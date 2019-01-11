@@ -30,13 +30,22 @@
   unused-packages = true
 
 [[constraint]]
-  name = "github.com/onsi/gomega"
-  version = "1.4.2"
-
-[[constraint]]
   name = "github.com/mattn/go-zglob"
   revision = "2ea3427bfa539cca900ca2768d8663ecc8a708c1"
 
 [[constraint]]
   name = "github.com/xeipuuv/gojsonschema"
   revision = "v1.0"
+
+[[constraint]]
+  name = "github.com/onsi/ginkgo"
+  version = "1.7.0"
+
+[[constraint]]
+  name = "github.com/onsi/gomega"
+  version = "1.4.2"
+
+# dep issue #1799
+[[override]]
+  name = "gopkg.in/fsnotify.v1"
+  source = "gopkg.in/fsnotify/fsnotify.v1"
