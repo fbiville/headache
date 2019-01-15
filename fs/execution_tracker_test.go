@@ -22,324 +22,191 @@ import (
 	"github.com/fbiville/headache/fs_mocks"
 	"github.com/fbiville/headache/vcs_mocks"
 	"github.com/golang/mock/gomock"
+	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"os"
-	"testing"
 	"time"
 )
 
-func TestLastExecutionRevisionWithPriorTrackingFile(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
-	givenTrackerFileAtRevision(vcs, fileReader, fileWriter, "0xdeadbeef")
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader, FileWriter: fileWriter},
-		Clock:      &FixedClock{},
-	}
+var _ = Describe("Execution tracker", func() {
+	var (
+		t          GinkgoTInterface
+		controller *gomock.Controller
+		vcs        *vcs_mocks.Vcs
+		fileReader *fs_mocks.FileReader
+		fileWriter *fs_mocks.FileWriter
+		tracker    ExecutionVcsTracker
+	)
 
-	revision, err := tracker.GetLastExecutionRevision()
+	BeforeEach(func() {
+		t = GinkgoT()
+		controller = gomock.NewController(t)
+		vcs = new(vcs_mocks.Vcs)
+		fileReader = new(fs_mocks.FileReader)
+		fileWriter = new(fs_mocks.FileWriter)
+		tracker = ExecutionVcsTracker{
+			Versioning: vcs,
+			FileSystem: FileSystem{FileReader: fileReader, FileWriter: fileWriter},
+			Clock:      &FixedClock{},
+		}
+	})
 
-	I.Expect(err).To(BeNil())
-	I.Expect(revision).To(Equal("0xdeadbeef"))
-}
+	AfterEach(func() {
+		vcs.AssertExpectations(t)
+		fileReader.AssertExpectations(t)
+		fileWriter.AssertExpectations(t)
+		controller.Finish()
+	})
 
-func TestLastExecutionRevisionWithoutTrackingFile(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
-	givenNoTrackerFile(vcs, fileReader, fileWriter)
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader, FileWriter: fileWriter},
-		Clock:      &FixedClock{},
-	}
+	Describe("when computing last revision", func() {
+		It("gets the last execution based on the existing tracker file", func() {
+			givenTrackerFileAtRevision(vcs, fileReader, fileWriter, "0xdeadbeef")
 
-	revision, err := tracker.GetLastExecutionRevision()
-	I.Expect(err).To(BeNil())
-	I.Expect(revision).To(Equal(""))
-}
+			revision, err := tracker.GetLastExecutionRevision()
 
-func TestLastExecutionPropagatesVersioningRootError(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
+			Expect(err).To(BeNil())
+			Expect(revision).To(Equal("0xdeadbeef"))
+		})
 
-	rootError := fmt.Errorf("root error")
-	vcs.On("Root").Return("", rootError)
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader},
-		Clock:      &FixedClock{},
-	}
+		It("gets an empty revision when there is no prior tracker file", func() {
+			givenNoTrackerFile(vcs, fileReader, fileWriter)
 
-	_, err := tracker.GetLastExecutionRevision()
+			revision, err := tracker.GetLastExecutionRevision()
 
-	I.Expect(err).To(Equal(rootError))
-}
+			Expect(err).To(BeNil())
+			Expect(revision).To(Equal(""))
+		})
 
-func TestLastExecutionPropagatesFileSystemStatError(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
+		It("propagates versioning root determination error", func() {
+			rootError := fmt.Errorf("root error")
+			vcs.On("Root").Return("", rootError)
 
-	fileInfoError := fmt.Errorf("fileinfo error")
-	vcs.On("Root").Return("fake-root", nil)
-	fileReader.On("Stat", "fake-root/.headache-run").Return(nil, fileInfoError)
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader},
-		Clock:      &FixedClock{},
-	}
+			_, err := tracker.GetLastExecutionRevision()
 
-	_, err := tracker.GetLastExecutionRevision()
+			Expect(err).To(Equal(rootError))
+		})
 
-	I.Expect(err).To(Equal(fileInfoError))
-}
+		It("propagates filesystem stat error", func() {
+			fileInfoError := fmt.Errorf("fileinfo error")
+			vcs.On("Root").Return("fake-root", nil)
+			fileReader.On("Stat", "fake-root/.headache-run").Return(nil, fileInfoError)
 
-func TestLastExecutionPropagatesFileSystemWriteError(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
+			_, err := tracker.GetLastExecutionRevision()
 
-	fileWriteError := fmt.Errorf("oopsie writie")
-	vcs.On("Root").Return("fake-root", nil)
-	fileReader.On("Stat", "fake-root/.headache-run").Return(nil, os.ErrNotExist)
-	fileWriter.On("Write", "fake-root/.headache-run", "# Generated by headache | 42 -- commit me!", os.FileMode(0640)).Return(fileWriteError)
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader, FileWriter: fileWriter},
-		Clock:      &FixedClock{},
-	}
+			Expect(err).To(Equal(fileInfoError))
+		})
 
-	_, err := tracker.GetLastExecutionRevision()
+		It("propagates filesystem write error when the tracking file does not exist", func() {
+			fileWriteError := fmt.Errorf("oopsie writie")
+			vcs.On("Root").Return("fake-root", nil)
+			fileReader.On("Stat", "fake-root/.headache-run").Return(nil, os.ErrNotExist)
+			fileWriter.On("Write", "fake-root/.headache-run", "# Generated by headache | 42 -- commit me!", os.FileMode(0640)).Return(fileWriteError)
 
-	I.Expect(err).To(Equal(fileWriteError))
-}
+			_, err := tracker.GetLastExecutionRevision()
 
-func TestLastExecutionPropagatesFileSystemTouchError(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
+			Expect(err).To(Equal(fileWriteError))
+		})
 
-	writeError := fmt.Errorf("write error")
-	vcs.On("Root").Return("fake-root", nil)
-	fileReader.On("Stat", "fake-root/.headache-run").Return(&FakeFileInfo{FileMode: 0777}, nil)
-	fileWriter.On("Write", "fake-root/.headache-run", "# Generated by headache | 42 -- commit me!", os.FileMode(0640)).Return(writeError)
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader, FileWriter: fileWriter},
-		Clock:      &FixedClock{},
-	}
+		It("propagates filesystem touch error on the existing tracking file", func() {
+			touch := fmt.Errorf("touch error")
+			vcs.On("Root").Return("fake-root", nil)
+			fileReader.On("Stat", "fake-root/.headache-run").Return(&FakeFileInfo{FileMode: 0777}, nil)
+			fileWriter.On("Write", "fake-root/.headache-run", "# Generated by headache | 42 -- commit me!", os.FileMode(0640)).Return(touch)
 
-	_, err := tracker.GetLastExecutionRevision()
+			_, err := tracker.GetLastExecutionRevision()
 
-	I.Expect(err).To(Equal(writeError))
-}
+			Expect(err).To(Equal(touch))
+		})
 
-func TestLastExecutionPropagatesVersioningLastRevisionError(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
+		It("propagates last versioning revision retrieval error", func() {
+			latestRevisionError := fmt.Errorf("latest revision error")
+			vcs.On("Root").Return("fake-root", nil)
+			fileReader.On("Stat", "fake-root/.headache-run").Return(&FakeFileInfo{FileMode: 0777}, nil)
+			fileWriter.On("Write", "fake-root/.headache-run", "# Generated by headache | 42 -- commit me!", os.FileMode(0640)).Return(nil)
+			vcs.On("LatestRevision", "fake-root/.headache-run").Return("", latestRevisionError)
 
-	latestRevisionError := fmt.Errorf("latest revision error")
-	vcs.On("Root").Return("fake-root", nil)
-	fileReader.On("Stat", "fake-root/.headache-run").Return(&FakeFileInfo{FileMode: 0777}, nil)
-	fileWriter.On("Write", "fake-root/.headache-run", "# Generated by headache | 42 -- commit me!", os.FileMode(0640)).Return(nil)
-	vcs.On("LatestRevision", "fake-root/.headache-run").Return("", latestRevisionError)
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader, FileWriter: fileWriter},
-		Clock:      &FixedClock{},
-	}
+			_, err := tracker.GetLastExecutionRevision()
 
-	_, err := tracker.GetLastExecutionRevision()
+			Expect(err).To(Equal(latestRevisionError))
+		})
+	})
 
-	I.Expect(err).To(Equal(latestRevisionError))
-}
+	Describe("when reading lines at a specific revision", func() {
+		It("succeeds at doing so without prior tracker file", func() {
+			givenNoTrackerFile(vcs, fileReader, fileWriter)
+			headerFile := "some-header"
+			fileReader.On("Read", headerFile).
+				Return([]byte("some very important notice\nthat noone will actually read #sadpanda"), nil)
 
-func TestReadLinesWithoutTrackerFileRevision(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
-	givenNoTrackerFile(vcs, fileReader, fileWriter)
-	headerFile := "some-header"
-	fileReader.On("Read", headerFile).
-		Return([]byte("some very important notice\nthat noone will actually read #sadpanda"), nil)
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader, FileWriter: fileWriter},
-		Clock:      &FixedClock{},
-	}
+			contents, err := tracker.ReadLinesAtLastExecutionRevision(headerFile)
 
-	contents, err := tracker.ReadLinesAtLastExecutionRevision(headerFile)
+			Expect(err).To(BeNil())
+			Expect(contents.PreviousLines).To(Equal(contents.CurrentLines))
+			Expect(contents.CurrentLines).To(Equal([]string{
+				"some very important notice",
+				"that noone will actually read #sadpanda",
+			}))
+		})
 
-	I.Expect(err).To(BeNil())
-	I.Expect(contents.PreviousLines).To(Equal(contents.CurrentLines))
-	I.Expect(contents.CurrentLines).To(Equal([]string{
-		"some very important notice",
-		"that noone will actually read #sadpanda",
-	}))
-}
+		It("succeeds at doing so with a prior tracker file", func() {
+			revision := "0xcafebabe"
+			givenTrackerFileAtRevision(vcs, fileReader, fileWriter, revision)
+			headerFile := "some-header"
+			vcs.On("ShowContentAtRevision", headerFile, revision).
+				Return("a somewhat important notice\nI hope will actually read it #foreveroptimism", nil)
+			fileReader.On("Read", headerFile).
+				Return([]byte("some very important notice\nthat noone will actually read #sadpanda"), nil)
 
-func TestReadLinesWithTrackerFileRevision(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
-	revision := "0xcafebabe"
-	givenTrackerFileAtRevision(vcs, fileReader, fileWriter, revision)
-	headerFile := "some-header"
-	vcs.On("ShowContentAtRevision", headerFile, revision).
-		Return("a somewhat important notice\nI hope will actually read it #foreveroptimism", nil)
-	fileReader.On("Read", headerFile).
-		Return([]byte("some very important notice\nthat noone will actually read #sadpanda"), nil)
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader, FileWriter: fileWriter},
-		Clock:      &FixedClock{},
-	}
+			contents, err := tracker.ReadLinesAtLastExecutionRevision(headerFile)
 
-	contents, err := tracker.ReadLinesAtLastExecutionRevision(headerFile)
+			Expect(err).To(BeNil())
+			Expect(contents.PreviousLines).To(Equal([]string{
+				"a somewhat important notice",
+				"I hope will actually read it #foreveroptimism",
+			}))
+			Expect(contents.CurrentLines).To(Equal([]string{
+				"some very important notice",
+				"that noone will actually read #sadpanda",
+			}))
+		})
 
-	I.Expect(err).To(BeNil())
-	I.Expect(contents.PreviousLines).To(Equal([]string{
-		"a somewhat important notice",
-		"I hope will actually read it #foreveroptimism",
-	}))
-	I.Expect(contents.CurrentLines).To(Equal([]string{
-		"some very important notice",
-		"that noone will actually read #sadpanda",
-	}))
-}
+		It("propagates filesystem read error", func() {
+			headerFile := "some-header"
+			readError := fmt.Errorf("read error")
+			fileReader.On("Read", headerFile).Return(nil, readError)
 
-func TestReadLinesPropagatesReadError(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
-	headerFile := "some-header"
-	readError := fmt.Errorf("read error")
-	fileReader.On("Read", headerFile).Return(nil, readError)
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader, FileWriter: fileWriter},
-		Clock:      &FixedClock{},
-	}
+			_, err := tracker.ReadLinesAtLastExecutionRevision(headerFile)
 
-	_, err := tracker.ReadLinesAtLastExecutionRevision(headerFile)
+			Expect(err).To(Equal(readError))
+		})
 
-	I.Expect(err).To(Equal(readError))
-}
+		It("propagates versioning errors without prior tracker file", func() {
+			revision := "0xcafebabe"
+			givenTrackerFileAtRevision(vcs, fileReader, fileWriter, revision)
+			headerFile := "some-header"
+			fileReader.On("Read", headerFile).
+				Return([]byte("some very important notice\nthat noone will actually read #sadpanda"), nil)
+			versioningError := fmt.Errorf("versioning error")
+			vcs.On("ShowContentAtRevision", headerFile, revision).Return("", versioningError)
 
-func TestReadLinesPropagatesVersioningReadErrorWithTrackerFileRevision(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
-	revision := "0xcafebabe"
-	givenTrackerFileAtRevision(vcs, fileReader, fileWriter, revision)
-	headerFile := "some-header"
-	fileReader.On("Read", headerFile).
-		Return([]byte("some very important notice\nthat noone will actually read #sadpanda"), nil)
-	versioningError := fmt.Errorf("versioning error")
-	vcs.On("ShowContentAtRevision", headerFile, revision).Return("", versioningError)
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader, FileWriter: fileWriter},
-		Clock:      &FixedClock{},
-	}
+			_, err := tracker.ReadLinesAtLastExecutionRevision(headerFile)
 
-	_, err := tracker.ReadLinesAtLastExecutionRevision(headerFile)
+			Expect(err).To(Equal(versioningError))
+		})
 
-	I.Expect(err).To(Equal(versioningError))
-}
+		It("propagates tracker file versioning revision retrieval error", func() {
+			headerFile := "some-header"
+			fileReader.On("Read", headerFile).
+				Return([]byte("some very important notice\nthat noone will actually read #sadpanda"), nil)
+			vcsRootError := fmt.Errorf("root error")
+			vcs.On("Root").Return("", vcsRootError)
 
-func TestReadLinesPropagatesTrackerFileRevisionError(t *testing.T) {
-	I := NewGomegaWithT(t)
-	controller := gomock.NewController(t)
-	defer controller.Finish()
-	vcs := new(vcs_mocks.Vcs)
-	defer vcs.AssertExpectations(t)
-	fileReader := new(fs_mocks.FileReader)
-	defer fileReader.AssertExpectations(t)
-	fileWriter := new(fs_mocks.FileWriter)
-	defer fileWriter.AssertExpectations(t)
-	headerFile := "some-header"
-	fileReader.On("Read", headerFile).
-		Return([]byte("some very important notice\nthat noone will actually read #sadpanda"), nil)
-	vcsRootError := fmt.Errorf("root error")
-	vcs.On("Root").Return("", vcsRootError)
-	tracker := ExecutionVcsTracker{
-		Versioning: vcs,
-		FileSystem: FileSystem{FileReader: fileReader, FileWriter: fileWriter},
-		Clock:      &FixedClock{},
-	}
+			_, err := tracker.ReadLinesAtLastExecutionRevision(headerFile)
 
-	_, err := tracker.ReadLinesAtLastExecutionRevision(headerFile)
-
-	I.Expect(err).To(Equal(vcsRootError))
-}
+			Expect(err).To(Equal(vcsRootError))
+		})
+	})
+})
 
 func givenTrackerFileAtRevision(vcs *vcs_mocks.Vcs, fileReader *fs_mocks.FileReader, fileWriter *fs_mocks.FileWriter, revision string) {
 	vcs.On("Root").Return("fake-root", nil)

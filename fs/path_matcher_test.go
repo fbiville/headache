@@ -20,33 +20,51 @@ import (
 	. "github.com/fbiville/headache/fs"
 	"github.com/fbiville/headache/fs_mocks"
 	"github.com/fbiville/headache/vcs"
+	"github.com/golang/mock/gomock"
+	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 	"os"
-	"testing"
 )
 
-func TestMatch(t *testing.T) {
-	I := NewGomegaWithT(t)
-	includes := []string{"../fixtures/*.txt"}
-	excludes := []string{"../fixtures/*_with_header.txt"}
-	fileReader := new(fs_mocks.FileReader)
-	fileReader.On("Stat", mock.Anything).Return(&FakeFileInfo{FileMode: 0777}, nil)
-	fileSystem := FileSystem{FileReader: fileReader}
-	matcher := &ZglobPathMatcher{}
+var _ = Describe("Path matcher", func() {
+	var (
+		controller *gomock.Controller
+		fileReader *fs_mocks.FileReader
+		fileSystem FileSystem
+		matcher    *ZglobPathMatcher
+	)
 
-	matchedChanges := []vcs.FileChange{{Path: "../fixtures/bonjour_world.txt"}}
-	I.Expect(matcher.MatchFiles(matchedChanges, includes, excludes, fileSystem)).To(Equal(matchedChanges))
-	I.Expect(matcher.MatchFiles([]vcs.FileChange{{Path: "../fixtures/bonjour_world.go"}}, includes, excludes, fileSystem)).To(BeEmpty())
-	I.Expect(matcher.MatchFiles([]vcs.FileChange{{Path: "../fixtures/hello_world_with_header.txt"}}, includes, excludes, fileSystem)).To(BeEmpty())
-}
+	BeforeEach(func() {
+		controller = gomock.NewController(GinkgoT())
+		fileReader = new(fs_mocks.FileReader)
+		fileSystem = FileSystem{FileReader: fileReader}
+		matcher = &ZglobPathMatcher{}
+	})
 
-func TestMatchOnlyFiles(t *testing.T) {
-	I := NewGomegaWithT(t)
-	fileReader := new(fs_mocks.FileReader)
-	fileReader.On("Stat", mock.Anything).Return(&FakeFileInfo{FileMode: os.ModeDir}, nil)
-	fileSystem := FileSystem{FileReader: fileReader}
-	matcher := &ZglobPathMatcher{}
+	AfterEach(func() {
+		controller.Finish()
+		fileReader.AssertExpectations(GinkgoT())
+	})
 
-	I.Expect(matcher.MatchFiles([]vcs.FileChange{{Path: "../fixtures"}}, []string{"../fixture*"}, []string{}, fileSystem)).To(BeEmpty())
-}
+	It("matches paths matching include patterns and not matching exclude patterns", func() {
+		includes := []string{"../fixtures/*.txt"}
+		excludes := []string{"../fixtures/*_with_header.txt"}
+		fileReader.On("Stat", mock.Anything).Return(&FakeFileInfo{FileMode: 0777}, nil)
+
+		Expect(matcher.MatchFiles([]vcs.FileChange{{Path: "../fixtures/bonjour_world.txt"}}, includes, excludes, fileSystem)).
+			To(Equal([]vcs.FileChange{{Path: "../fixtures/bonjour_world.txt"}}))
+		Expect(matcher.MatchFiles([]vcs.FileChange{{Path: "../fixtures/bonjour_world.go"}}, includes, excludes, fileSystem)).
+			To(BeEmpty())
+		Expect(matcher.MatchFiles([]vcs.FileChange{{Path: "../fixtures/hello_world_with_header.txt"}}, includes, excludes, fileSystem)).
+			To(BeEmpty())
+	})
+
+	It("matches only files", func() {
+		includes := []string{"../fixture*"}
+		excludes := []string{}
+		fileReader.On("Stat", mock.Anything).Return(&FakeFileInfo{FileMode: os.ModeDir}, nil)
+
+		Expect(matcher.MatchFiles([]vcs.FileChange{{Path: "../fixtures"}}, includes, excludes, fileSystem)).To(BeEmpty())
+	})
+})
