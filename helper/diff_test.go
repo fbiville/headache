@@ -18,28 +18,27 @@ package helper_test
 
 import (
 	. "github.com/fbiville/headache/helper"
+	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"testing"
 )
 
-func TestDiff(t *testing.T) {
-	I := NewGomegaWithT(t)
+var _ = Describe("Diff", func() {
 
-	result, err := Diff(`"foo\nbar\nbaz"`, `"foo\nfighters\nbaz"`)
+	It("just works", func() {
+		result, err := Diff(`"foo\nbar\nbaz"`, `"foo\nfighters\nbaz"`)
 
-	I.Expect(err).To(BeNil())
-	I.Expect(result).To(Equal(`2c2
+		Expect(err).To(BeNil())
+		Expect(result).To(Equal(`2c2
 < bar
 ---
 > fighters
 `))
-}
+	})
 
-func TestDiffSameString(t *testing.T) {
-	I := NewGomegaWithT(t)
+	It("produces an empty string if the contents are the same", func() {
+		result, err := Diff("foo", "foo")
 
-	result, err := Diff(`foo`, `foo`)
-
-	I.Expect(err).To(BeNil())
-	I.Expect(result).To(Equal(""))
-}
+		Expect(err).To(BeNil())
+		Expect(result).To(Equal(""))
+	})
+})

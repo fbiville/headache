@@ -18,19 +18,28 @@ package helper_test
 
 import (
 	. "github.com/fbiville/headache/helper"
-	"testing"
+	. "github.com/onsi/ginkgo"
 	"testing/quick"
 )
 
-func TestSlicePrepend(t *testing.T) {
-	f := func(head string, tail []string) bool {
-		result := PrependString(head, tail)
-		return len(result) == 1+len(tail) && result[0] == head && SliceEqual(result[1:], tail)
-	}
-	if err := quick.Check(f, nil); err != nil {
-		t.Error(err)
-	}
-}
+var _ = Describe("String slices", func() {
+
+	var t GinkgoTInterface
+
+	BeforeEach(func() {
+		t = GinkgoT()
+	})
+
+	It("prepends strings to it", func() {
+		f := func(head string, tail []string) bool {
+			result := PrependString(head, tail)
+			return len(result) == 1+len(tail) && result[0] == head && SliceEqual(result[1:], tail)
+		}
+		if err := quick.Check(f, nil); err != nil {
+			t.Error(err)
+		}
+	})
+})
 
 func SliceEqual(slice1 []string, slice2 []string) bool {
 	if len(slice1) != len(slice2) {
