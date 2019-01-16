@@ -19,7 +19,6 @@ package core_test
 import (
 	"github.com/fbiville/headache/core"
 	"github.com/fbiville/headache/fs_mocks"
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	json "github.com/xeipuuv/gojsonschema"
@@ -31,14 +30,12 @@ import (
 var _ = Describe("Configuration validator", func() {
 	var (
 		t          GinkgoTInterface
-		controller *gomock.Controller
 		fileReader *fs_mocks.FileReader
 		validator  core.JsonSchemaValidator
 	)
 
 	BeforeEach(func() {
 		t = GinkgoT()
-		controller = gomock.NewController(t)
 		fileReader = new(fs_mocks.FileReader)
 		validator = core.JsonSchemaValidator{
 			FileReader: fileReader,
@@ -48,7 +45,6 @@ var _ = Describe("Configuration validator", func() {
 
 	AfterEach(func() {
 		fileReader.AssertExpectations(t)
-		controller.Finish()
 	})
 
 	It("accepts minimal valid configuration", func() {

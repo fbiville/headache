@@ -19,7 +19,6 @@ package vcs_test
 import (
 	. "github.com/fbiville/headache/vcs"
 	"github.com/fbiville/headache/vcs_mocks"
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"time"
@@ -29,14 +28,12 @@ var _ = Describe("VCS", func() {
 
 	var (
 		t          GinkgoTInterface
-		controller *gomock.Controller
 		vcs        Vcs
 		vcsMock    *vcs_mocks.Vcs
 	)
 
 	BeforeEach(func() {
 		t = GinkgoT()
-		controller = gomock.NewController(t)
 		vcs = new(vcs_mocks.Vcs)
 		vcsMock = vcs.(*vcs_mocks.Vcs)
 
@@ -44,7 +41,6 @@ var _ = Describe("VCS", func() {
 
 	AfterEach(func() {
 		vcsMock.AssertExpectations(t)
-		controller.Finish()
 	})
 
 	It("retrieves committed changes", func() {

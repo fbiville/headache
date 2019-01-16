@@ -21,7 +21,6 @@ import (
 	"github.com/fbiville/headache/fs"
 	"github.com/fbiville/headache/fs_mocks"
 	"github.com/fbiville/headache/vcs"
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	"os"
 	"regexp"
@@ -29,18 +28,15 @@ import (
 
 var _ = Describe("Headache", func() {
 	var (
-		t GinkgoTInterface
-		controller *gomock.Controller
+		t          GinkgoTInterface
 		fileReader *fs_mocks.FileReader
 		fileWriter *fs_mocks.FileWriter
 		fileSystem fs.FileSystem
 		delimiter  string
 	)
 
-
 	BeforeEach(func() {
 		t = GinkgoT()
-		controller = gomock.NewController(t)
 		fileReader = new(fs_mocks.FileReader)
 		fileWriter = new(fs_mocks.FileWriter)
 		fileSystem = fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
@@ -50,7 +46,6 @@ var _ = Describe("Headache", func() {
 	AfterEach(func() {
 		fileReader.AssertExpectations(t)
 		fileWriter.AssertExpectations(t)
-		controller.Finish()
 	})
 
 	It("writes the header of matched files", func() {

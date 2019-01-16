@@ -23,7 +23,6 @@ import (
 	"github.com/fbiville/headache/helper_mocks"
 	. "github.com/fbiville/headache/vcs"
 	"github.com/fbiville/headache/vcs_mocks"
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"strings"
@@ -32,7 +31,6 @@ import (
 var _ = Describe("Configuration parser", func() {
 	var (
 		t                   GinkgoTInterface
-		controller          *gomock.Controller
 		fileReader          *fs_mocks.FileReader
 		fileWriter          *fs_mocks.FileWriter
 		fileSystem          fs.FileSystem
@@ -49,7 +47,6 @@ var _ = Describe("Configuration parser", func() {
 
 	BeforeEach(func() {
 		t = GinkgoT()
-		controller = gomock.NewController(t)
 		fileReader = new(fs_mocks.FileReader)
 		fileWriter = new(fs_mocks.FileWriter)
 		fileSystem = fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
@@ -75,7 +72,6 @@ var _ = Describe("Configuration parser", func() {
 		tracker.AssertExpectations(t)
 		pathMatcher.AssertExpectations(t)
 		clock.AssertExpectations(t)
-		controller.Finish()
 	})
 
 	It("pre-computes the final configuration", func() {

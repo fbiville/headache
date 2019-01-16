@@ -10,14 +10,6 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:bc38c7c481812e178d85160472e231c5e1c9a7f5845d67e23ee4e706933c10d8"
-  name = "github.com/golang/mock"
-  packages = ["gomock"]
-  pruneopts = "UT"
-  revision = "c34cdb4725f4c3844d095133c6e40e448b86589b"
-  version = "v1.1.1"
-
-[[projects]]
   digest = "1:a1038ef593beb4771c8f0f9c26e8b00410acd800af5c6864651d9bf160ea1813"
   name = "github.com/hpcloud/tail"
   packages = [
@@ -141,10 +133,9 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:908ac65130b45626b3724705bbb8183a785054fb9b7284c93803918bb81e813b"
+  digest = "1:c85f5fc06e706d2e47979c95633d90e1293356446c876383d466f0054d19e731"
   name = "golang.org/x/net"
   packages = [
-    "context",
     "html",
     "html/atom",
     "html/charset",
@@ -215,7 +206,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/golang/mock/gomock",
     "github.com/mattn/go-zglob",
     "github.com/onsi/ginkgo",
     "github.com/onsi/gomega",

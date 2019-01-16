@@ -21,7 +21,6 @@ import (
 	. "github.com/fbiville/headache/fs"
 	"github.com/fbiville/headache/fs_mocks"
 	"github.com/fbiville/headache/vcs_mocks"
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"os"
@@ -31,7 +30,6 @@ import (
 var _ = Describe("Execution tracker", func() {
 	var (
 		t          GinkgoTInterface
-		controller *gomock.Controller
 		vcs        *vcs_mocks.Vcs
 		fileReader *fs_mocks.FileReader
 		fileWriter *fs_mocks.FileWriter
@@ -40,7 +38,6 @@ var _ = Describe("Execution tracker", func() {
 
 	BeforeEach(func() {
 		t = GinkgoT()
-		controller = gomock.NewController(t)
 		vcs = new(vcs_mocks.Vcs)
 		fileReader = new(fs_mocks.FileReader)
 		fileWriter = new(fs_mocks.FileWriter)
@@ -55,7 +52,6 @@ var _ = Describe("Execution tracker", func() {
 		vcs.AssertExpectations(t)
 		fileReader.AssertExpectations(t)
 		fileWriter.AssertExpectations(t)
-		controller.Finish()
 	})
 
 	Describe("when computing last revision", func() {

@@ -20,7 +20,6 @@ import (
 	. "github.com/fbiville/headache/fs"
 	"github.com/fbiville/headache/fs_mocks"
 	"github.com/fbiville/headache/vcs"
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
@@ -29,22 +28,21 @@ import (
 
 var _ = Describe("Path matcher", func() {
 	var (
-		controller *gomock.Controller
+		t          GinkgoTInterface
 		fileReader *fs_mocks.FileReader
 		fileSystem FileSystem
 		matcher    *ZglobPathMatcher
 	)
 
 	BeforeEach(func() {
-		controller = gomock.NewController(GinkgoT())
+		t = GinkgoT()
 		fileReader = new(fs_mocks.FileReader)
 		fileSystem = FileSystem{FileReader: fileReader}
 		matcher = &ZglobPathMatcher{}
 	})
 
 	AfterEach(func() {
-		controller.Finish()
-		fileReader.AssertExpectations(GinkgoT())
+		fileReader.AssertExpectations(t)
 	})
 
 	It("matches paths matching include patterns and not matching exclude patterns", func() {
