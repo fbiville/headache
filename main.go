@@ -26,6 +26,7 @@ import (
 )
 
 func main() {
+	log.Print("Starting...")
 	configFile := flag.String("configuration", "headache.json", "Path to configuration file")
 
 	flag.Parse()
@@ -44,6 +45,7 @@ func main() {
 		log.Fatalf("headache configuration error, cannot parse\n\t%v\n", err)
 	}
 	Run(configuration, fileSystem)
+	log.Print("Done!")
 }
 
 func readConfiguration(configFile *string, reader fs.FileReader) Configuration {
