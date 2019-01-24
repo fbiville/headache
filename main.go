@@ -62,8 +62,12 @@ func readConfiguration(configFile *string, reader fs.FileReader) Configuration {
 }
 
 func validateConfiguration(reader fs.FileReader, configFile *string) {
+	schema := loadSchema()
+	if schema == nil {
+		return
+	}
 	jsonSchemaValidator := JsonSchemaValidator{
-		Schema:     loadSchema(),
+		Schema:     schema,
 		FileReader: reader,
 	}
 	validationError := jsonSchemaValidator.Validate("file://" + *configFile)
@@ -73,9 +77,10 @@ func validateConfiguration(reader fs.FileReader, configFile *string) {
 }
 
 func loadSchema() *jsonsch.Schema {
-	schema, err := jsonsch.NewSchema(jsonsch.NewReferenceLoader("file://docs/schema.json"))
+	schema, err := jsonsch.NewSchema(jsonsch.NewReferenceLoader("https://fbiville.github.io/headache/v1.0.0-M01/schema.json"))
 	if err != nil {
-		log.Fatalf("headache configuration error, cannot load JSON schema\n\t%v\n", err)
+		log.Printf("headache configuration warning: cannot load schema, skipping configuration validation. See reason below:\n\t%v\n", err)
+		return nil
 	}
 	return schema
 }
