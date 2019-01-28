@@ -35,23 +35,23 @@ type Vcs interface {
 }
 
 type Git struct{}
-func (Git) Status(args ...string) (string, error) {
+func (*Git) Status(args ...string) (string, error) {
 	return git(PrependString("status", args)...)
 }
-func (Git) Diff(args ...string) (string, error) {
+func (*Git) Diff(args ...string) (string, error) {
 	return git(PrependString("diff", args)...)
 }
-func (g Git) LatestRevision(file string) (string, error) {
+func (g *Git) LatestRevision(file string) (string, error) {
 	result, err := g.Log("-1", `--format=%H`, "--", file)
 	if err != nil {
 		return "", err
 	}
 	return strings.Trim(result, "\n"), nil
 }
-func (Git) Log(args ...string) (string, error) {
+func (*Git) Log(args ...string) (string, error) {
 	return git(PrependString("log", args)...)
 }
-func (Git) ShowContentAtRevision(path string, revision string) (string, error) {
+func (*Git) ShowContentAtRevision(path string, revision string) (string, error) {
 	if revision == "" {
 		return "", nil
 	}
@@ -62,7 +62,7 @@ func (Git) ShowContentAtRevision(path string, revision string) (string, error) {
 	fullRevision = strings.Trim(fullRevision, "\n")
 	return git("cat-file", "-p", fmt.Sprintf("%s:%s", fullRevision, path))
 }
-func (Git) Root() (string, error) {
+func (*Git) Root() (string, error) {
 	result, err := git("rev-parse", "--show-toplevel")
 	if err != nil {
 		return "", err

@@ -22,14 +22,14 @@ import (
 )
 
 type PathMatcher interface {
-	ScanAllFiles(includes []string, excludes []string, filesystem FileSystem) ([]vcs.FileChange, error)
-	MatchFiles(changes []vcs.FileChange, includes []string, excludes []string, filesystem FileSystem) []vcs.FileChange
+	ScanAllFiles(includes []string, excludes []string, filesystem *FileSystem) ([]vcs.FileChange, error)
+	MatchFiles(changes []vcs.FileChange, includes []string, excludes []string, filesystem *FileSystem) []vcs.FileChange
 }
 
 type ZglobPathMatcher struct {}
 
 // Scans all local files based on the provided inclusion and exclusion patterns
-func (*ZglobPathMatcher) ScanAllFiles(includes []string, excludes []string, filesystem FileSystem) ([]vcs.FileChange, error) {
+func (*ZglobPathMatcher) ScanAllFiles(includes []string, excludes []string, filesystem *FileSystem) ([]vcs.FileChange, error) {
 	result := make([]vcs.FileChange, 0)
 	for _, includePattern := range includes {
 		matches, err := zglob.Glob(includePattern)
@@ -49,7 +49,7 @@ func (*ZglobPathMatcher) ScanAllFiles(includes []string, excludes []string, file
 }
 
 // Matches files based on the provided inclusion and exclusion patterns
-func (*ZglobPathMatcher) MatchFiles(changes []vcs.FileChange, includes []string, excludes []string, filesystem FileSystem) []vcs.FileChange {
+func (*ZglobPathMatcher) MatchFiles(changes []vcs.FileChange, includes []string, excludes []string, filesystem *FileSystem) []vcs.FileChange {
 	result := make([]vcs.FileChange, 0)
 	for _, change := range changes {
 		if matches(change.Path, includes, excludes, filesystem) {
@@ -59,11 +59,11 @@ func (*ZglobPathMatcher) MatchFiles(changes []vcs.FileChange, includes []string,
 	return result
 }
 
-func matches(path string, includes []string, excludes []string, filesystem FileSystem) bool {
+func matches(path string, includes []string, excludes []string, filesystem *FileSystem) bool {
 	return matchesPattern(path, includes) && !isExcluded(path, excludes, filesystem)
 }
 
-func isExcluded(path string, excludes []string, filesystem FileSystem) bool {
+func isExcluded(path string, excludes []string, filesystem *FileSystem) bool {
 	return !filesystem.IsFile(path) || matchesPattern(path, excludes)
 }
 

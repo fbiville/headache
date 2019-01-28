@@ -17,7 +17,6 @@
 package core
 
 import (
-	"github.com/fbiville/headache/fs"
 	tpl "html/template"
 	"regexp"
 	"strings"
@@ -28,9 +27,9 @@ type templateResult struct {
 	detectionRegex *regexp.Regexp
 }
 
-func ParseTemplate(headerContents fs.HeaderContents, data map[string]string, style CommentStyle) (*templateResult, error) {
-	data["Year"] = "{{.Year}}" // injects reserved parameter into template, which will be parsed again, file by file
-	commentedLines, err := applyComments(headerContents.CurrentLines, style)
+func ParseTemplate(versionedHeader *VersionedHeaderTemplate, style CommentStyle) (*templateResult, error) {
+	currentData := injectReservedYearParameter(versionedHeader.Current.Data)
+	commentedLines, err := applyComments(versionedHeader.Current.Lines, style)
 	if err != nil {
 		return nil, err
 	}
@@ -39,11 +38,13 @@ func ParseTemplate(headerContents fs.HeaderContents, data map[string]string, sty
 		return nil, err
 	}
 	builder := &strings.Builder{}
-	err = template.Execute(builder, data)
+	err = template.Execute(builder, currentData)
 	if err != nil {
 		return nil, err
 	}
-	regex, err := ComputeDetectionRegex(headerContents.PreviousLines, data)
+
+	previousData := injectReservedYearParameter(versionedHeader.Previous.Data)
+	regex, err := ComputeDetectionRegex(versionedHeader.Previous.Lines, previousData)
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +52,13 @@ func ParseTemplate(headerContents fs.HeaderContents, data map[string]string, sty
 		actualContent:  builder.String(),
 		detectionRegex: regexp.MustCompile(regex),
 	}, nil
+}
+
+// injects reserved parameter into template data map
+// the template will be parsed a second time, file by file, with the computed .Year value
+func injectReservedYearParameter(currentData map[string]string) map[string]string {
+	currentData["Year"] = "{{.Year}}"
+	return currentData
 }
 
 func applyComments(lines []string, style CommentStyle) ([]string, error) {

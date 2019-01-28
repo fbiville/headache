@@ -30,7 +30,7 @@ import (
 
 type VcsChangeGetter func(vcs.Vcs, string, string) (error, []vcs.FileChange)
 
-func Run(config *ChangeSet, fileSystem fs.FileSystem) {
+func Run(config *ChangeSet, fileSystem *fs.FileSystem) {
 	for _, change := range config.Files {
 		path := change.Path
 		bytes, err := fileSystem.FileReader.Read(path)
@@ -46,7 +46,7 @@ func Run(config *ChangeSet, fileSystem fs.FileSystem) {
 			fileContents = strings.TrimLeft(fileContents[:matchLocation[0]]+fileContents[matchLocation[1]:], "\n")
 		}
 
-		finalHeaderContent, err := insertYears(config.HeaderContents, change, existingHeader)
+		finalHeaderContent, err := insertYears(config.HeaderContents, &change, existingHeader)
 		if err != nil {
 			log.Fatalf("headache execution error, cannot parse header for file %s\n\t%v", path, err)
 		}
@@ -55,7 +55,7 @@ func Run(config *ChangeSet, fileSystem fs.FileSystem) {
 	}
 }
 
-func insertYears(template string, change vcs.FileChange, existingHeader string) (string, error) {
+func insertYears(template string, change *vcs.FileChange, existingHeader string) (string, error) {
 	t, err := tpl.New("header-second-pass").Parse(template)
 	if err != nil {
 		return "", err
@@ -74,7 +74,7 @@ func insertYears(template string, change vcs.FileChange, existingHeader string) 
 	return builder.String(), nil
 }
 
-func computeCopyrightYears(change vcs.FileChange, existingHeader string) (string, error) {
+func computeCopyrightYears(change *vcs.FileChange, existingHeader string) (string, error) {
 	regex := regexp.MustCompile(`(\d{4})(?:\s*-\s*(\d{4}))?`)
 	matches := regex.FindStringSubmatch(existingHeader)
 	creationYear := change.CreationYear

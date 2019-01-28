@@ -23,10 +23,10 @@ import (
 	"regexp"
 )
 
-func DefaultSystemConfiguration() SystemConfiguration {
-	return SystemConfiguration{
+func DefaultSystemConfiguration() *SystemConfiguration {
+	return &SystemConfiguration{
 		VersioningClient: &vcs.Client{
-			Vcs: vcs.Git{},
+			Vcs: &vcs.Git{},
 		},
 		FileSystem: fs.DefaultFileSystem(),
 		Clock:      helper.SystemClock{},
@@ -35,7 +35,7 @@ func DefaultSystemConfiguration() SystemConfiguration {
 
 type SystemConfiguration struct {
 	VersioningClient vcs.VersioningClient
-	FileSystem       fs.FileSystem
+	FileSystem       *fs.FileSystem
 	Clock            helper.Clock
 }
 
@@ -54,25 +54,22 @@ type ChangeSet struct {
 }
 
 func ParseConfiguration(
-	config Configuration,
-	sysConfig SystemConfiguration,
-	tracker fs.ExecutionTracker,
+	currentConfig *Configuration,
+	system *SystemConfiguration,
+	tracker ExecutionTracker,
 	pathMatcher fs.PathMatcher) (*ChangeSet, error) {
 
-	// TODO: config.HeaderFile may have changed since last run - this may cause e.g. to not find the previous header file!
-	headerContents, err := tracker.ReadLinesAtLastExecutionRevision(config.HeaderFile)
+	versionedTemplate, err := tracker.RetrieveVersionedTemplate(currentConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: config.TemplateData may have changed since last run -- this may change the detection regex!
-	// note: comment style does not matter as the detection regex is designed to be insensitive to the style in use
-	contents, err := ParseTemplate(headerContents, config.TemplateData, ParseCommentStyle(config.CommentStyle))
+	contents, err := ParseTemplate(versionedTemplate, ParseCommentStyle(currentConfig.CommentStyle))
 	if err != nil {
 		return nil, err
 	}
 
-	changes, err := getFileChanges(config, sysConfig, tracker, pathMatcher)
+	changes, err := getAffectedFiles(currentConfig, system, versionedTemplate, pathMatcher)
 	if err != nil {
 		return nil, err
 	}
@@ -84,26 +81,25 @@ func ParseConfiguration(
 	}, nil
 }
 
-func getFileChanges(config Configuration,
-	sysConfig SystemConfiguration,
-	tracker fs.ExecutionTracker,
+func getAffectedFiles(config *Configuration,
+	sysConfig *SystemConfiguration,
+	versionedTemplate *VersionedHeaderTemplate,
 	pathMatcher fs.PathMatcher) ([]vcs.FileChange, error) {
 
 	versioningClient := sysConfig.VersioningClient
 	fileSystem := sysConfig.FileSystem
-	revision, err := tracker.GetLastExecutionRevision()
-	if err != nil {
-		return nil, err
-	}
-	var changes []vcs.FileChange
-	// TODO: centralize this check between here and ExecutionTracker#ReadLinesAtLastExecutionRevision
-	if revision == "" {
+	var (
+		changes []vcs.FileChange
+		err     error
+	)
+
+	if versionedTemplate.RequiresFullScan() {
 		changes, err = pathMatcher.ScanAllFiles(config.Includes, config.Excludes, fileSystem)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		fileChanges, err := versioningClient.GetChanges(revision)
+		fileChanges, err := versioningClient.GetChanges(versionedTemplate.Revision)
 		if err != nil {
 			return nil, err
 		}

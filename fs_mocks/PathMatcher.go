@@ -12,11 +12,11 @@ type PathMatcher struct {
 }
 
 // MatchFiles provides a mock function with given fields: changes, includes, excludes, filesystem
-func (_m *PathMatcher) MatchFiles(changes []vcs.FileChange, includes []string, excludes []string, filesystem fs.FileSystem) []vcs.FileChange {
+func (_m *PathMatcher) MatchFiles(changes []vcs.FileChange, includes []string, excludes []string, filesystem *fs.FileSystem) []vcs.FileChange {
 	ret := _m.Called(changes, includes, excludes, filesystem)
 
 	var r0 []vcs.FileChange
-	if rf, ok := ret.Get(0).(func([]vcs.FileChange, []string, []string, fs.FileSystem) []vcs.FileChange); ok {
+	if rf, ok := ret.Get(0).(func([]vcs.FileChange, []string, []string, *fs.FileSystem) []vcs.FileChange); ok {
 		r0 = rf(changes, includes, excludes, filesystem)
 	} else {
 		if ret.Get(0) != nil {
@@ -28,11 +28,11 @@ func (_m *PathMatcher) MatchFiles(changes []vcs.FileChange, includes []string, e
 }
 
 // ScanAllFiles provides a mock function with given fields: includes, excludes, filesystem
-func (_m *PathMatcher) ScanAllFiles(includes []string, excludes []string, filesystem fs.FileSystem) ([]vcs.FileChange, error) {
+func (_m *PathMatcher) ScanAllFiles(includes []string, excludes []string, filesystem *fs.FileSystem) ([]vcs.FileChange, error) {
 	ret := _m.Called(includes, excludes, filesystem)
 
 	var r0 []vcs.FileChange
-	if rf, ok := ret.Get(0).(func([]string, []string, fs.FileSystem) []vcs.FileChange); ok {
+	if rf, ok := ret.Get(0).(func([]string, []string, *fs.FileSystem) []vcs.FileChange); ok {
 		r0 = rf(includes, excludes, filesystem)
 	} else {
 		if ret.Get(0) != nil {
@@ -41,7 +41,7 @@ func (_m *PathMatcher) ScanAllFiles(includes []string, excludes []string, filesy
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func([]string, []string, fs.FileSystem) error); ok {
+	if rf, ok := ret.Get(1).(func([]string, []string, *fs.FileSystem) error); ok {
 		r1 = rf(includes, excludes, filesystem)
 	} else {
 		r1 = ret.Error(1)

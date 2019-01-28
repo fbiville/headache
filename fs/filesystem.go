@@ -29,8 +29,8 @@ type FileSystem struct {
 	FileReader FileReader
 }
 
-func DefaultFileSystem() FileSystem {
-	return FileSystem{
+func DefaultFileSystem() *FileSystem {
+	return &FileSystem{
 		FileWriter: &OsFileWriter{},
 		FileReader: &OsFileReader{},
 	}

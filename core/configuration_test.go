@@ -18,6 +18,7 @@ package core_test
 
 import (
 	"github.com/fbiville/headache/core"
+	"github.com/fbiville/headache/core_mocks"
 	"github.com/fbiville/headache/fs"
 	"github.com/fbiville/headache/fs_mocks"
 	"github.com/fbiville/headache/helper_mocks"
@@ -33,36 +34,42 @@ var _ = Describe("Configuration parser", func() {
 		t                   GinkgoTInterface
 		fileReader          *fs_mocks.FileReader
 		fileWriter          *fs_mocks.FileWriter
-		fileSystem          fs.FileSystem
+		fileSystem          *fs.FileSystem
 		versioningClient    *vcs_mocks.VersioningClient
-		tracker             *fs_mocks.ExecutionTracker
+		tracker             *core_mocks.ExecutionTracker
 		pathMatcher         *fs_mocks.PathMatcher
 		clock               *helper_mocks.Clock
 		initialChanges      []FileChange
 		includes            []string
 		excludes            []string
 		resultingChanges    []FileChange
-		systemConfiguration core.SystemConfiguration
+		systemConfiguration *core.SystemConfiguration
+		data                map[string]string
+		revision            string
 	)
 
 	BeforeEach(func() {
 		t = GinkgoT()
 		fileReader = new(fs_mocks.FileReader)
 		fileWriter = new(fs_mocks.FileWriter)
-		fileSystem = fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
+		fileSystem = &fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
 		versioningClient = new(vcs_mocks.VersioningClient)
-		tracker = new(fs_mocks.ExecutionTracker)
+		tracker = new(core_mocks.ExecutionTracker)
 		pathMatcher = new(fs_mocks.PathMatcher)
 		clock = new(helper_mocks.Clock)
 		initialChanges = []FileChange{{Path: "hello-world.go"}, {Path: "license.txt"}}
 		includes = []string{"../fixtures/hello_*.go"}
 		excludes = []string{}
 		resultingChanges = []FileChange{initialChanges[0]}
-		systemConfiguration = core.SystemConfiguration{
+		systemConfiguration = &core.SystemConfiguration{
 			FileSystem:       fileSystem,
 			Clock:            clock,
 			VersioningClient: versioningClient,
 		}
+		data = map[string]string{
+			"Owner": "ACME Labs",
+		}
+		revision = "some-sha"
 	})
 
 	AfterEach(func() {
@@ -75,21 +82,18 @@ var _ = Describe("Configuration parser", func() {
 	})
 
 	It("pre-computes the final configuration", func() {
-		tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
-			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license"), nil)
-		tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
-		versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
-		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
-		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
-
-		configuration := core.Configuration{
+		configuration := &core.Configuration{
 			HeaderFile:   "some-header",
 			CommentStyle: "SlashSlash",
 			Includes:     includes,
 			Excludes:     excludes,
-			TemplateData: map[string]string{
-				"Owner": "ACME Labs",
-			}}
+			TemplateData: data,
+		}
+		tracker.On("RetrieveVersionedTemplate", configuration).
+			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license", data, revision), nil)
+		versioningClient.On("GetChanges", revision).Return(initialChanges, nil)
+		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
+		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
 		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
 
@@ -99,21 +103,18 @@ var _ = Describe("Configuration parser", func() {
 	})
 
 	It("pre-computes the header contents with a different comment style", func() {
-		tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
-			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license"), nil)
-		tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
-		versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
-		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
-		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
-
-		configuration := core.Configuration{
+		configuration := &core.Configuration{
 			HeaderFile:   "some-header",
 			CommentStyle: "SlashStar",
 			Includes:     includes,
 			Excludes:     excludes,
-			TemplateData: map[string]string{
-				"Owner": "ACME Labs",
-			}}
+			TemplateData: data,
+		}
+		tracker.On("RetrieveVersionedTemplate", configuration).
+			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license", data, revision), nil)
+		versioningClient.On("GetChanges", revision).Return(initialChanges, nil)
+		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
+		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
 		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
 
@@ -127,21 +128,18 @@ var _ = Describe("Configuration parser", func() {
 	})
 
 	It("pre-computes a regex that allows to detect headers", func() {
-		tracker.On("ReadLinesAtLastExecutionRevision", "some-header").
-			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}"), nil)
-		tracker.On("GetLastExecutionRevision").Return("some-sha", nil)
-		versioningClient.On("GetChanges", "some-sha").Return(initialChanges, nil)
-		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
-		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
-
-		configuration := core.Configuration{
+		configuration := &core.Configuration{
 			HeaderFile:   "some-header",
 			CommentStyle: "SlashStar",
 			Includes:     includes,
 			Excludes:     excludes,
-			TemplateData: map[string]string{
-				"Owner": "ACME Labs",
-			}}
+			TemplateData: data,
+		}
+		tracker.On("RetrieveVersionedTemplate", configuration).
+			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}", data, revision), nil)
+		versioningClient.On("GetChanges", revision).Return(initialChanges, nil)
+		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
+		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
 		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
 
@@ -159,14 +157,48 @@ var _ = Describe("Configuration parser", func() {
 		Expect(regex.MatchString("// Copyright 2009-2012 ACME!")).To(BeTrue(),
 			"Regex should match contents with different data and comment style")
 	})
+
+	It("computes the header regex based on previous configuration", func() {
+		configuration := &core.Configuration{
+			HeaderFile:   "some-header",
+			CommentStyle: "SlashSlash",
+			Includes:     includes,
+			Excludes:     excludes,
+			TemplateData: data,
+		}
+		tracker.On("RetrieveVersionedTemplate", configuration).
+			Return(&core.VersionedHeaderTemplate{
+				Current:  template("new\nheader {{.Owner}}", map[string]string{"Owner": "Someone"}),
+				Revision: revision,
+				Previous: template("{{.Notice}} - old\nheader", map[string]string{"Notice": "Redding"}),
+			}, nil)
+		pathMatcher.On("ScanAllFiles", includes, excludes, fileSystem).Return(resultingChanges, nil)
+		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
+
+		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+
+		regex := changeSet.HeaderRegex
+		Expect(err).To(BeNil())
+		Expect(regex.MatchString("// Redding - old\n// header")).To(BeTrue(),
+			"Regex should match headers generated from previous run")
+	})
 })
 
-func unchangedHeaderContents(str string) fs.HeaderContents {
-	lines := strings.Split(str, "\n")
-	return fs.HeaderContents{
-		PreviousLines: lines,
-		CurrentLines:  lines,
+func unchangedHeaderContents(lines string, data map[string]string, revision string) *core.VersionedHeaderTemplate {
+	unchangedTemplate := template(lines, data)
+	return &core.VersionedHeaderTemplate{
+		Current:  unchangedTemplate,
+		Revision: revision,
+		Previous: unchangedTemplate,
 	}
+}
+
+func template(lines string, data map[string]string) *core.HeaderTemplate {
+	unchangedTemplate := &core.HeaderTemplate{
+		Lines: strings.Split(lines, "\n"),
+		Data:  data,
+	}
+	return unchangedTemplate
 }
 
 func onlyPaths(changes []FileChange) []FileChange {

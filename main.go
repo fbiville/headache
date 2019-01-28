@@ -17,72 +17,57 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	. "github.com/fbiville/headache/core"
 	"github.com/fbiville/headache/fs"
-	jsonsch "github.com/xeipuuv/gojsonschema"
 	"log"
 )
 
 func main() {
 	log.Print("Starting...")
-	configFile := flag.String("configuration", "headache.json", "Path to configuration file")
 
-	flag.Parse()
-
+	// poor man's dependency graph
 	systemConfig := DefaultSystemConfiguration()
 	fileSystem := systemConfig.FileSystem
-	rawConfiguration := readConfiguration(configFile, fileSystem.FileReader)
-	executionTracker := &fs.ExecutionVcsTracker{
-		Versioning: systemConfig.VersioningClient.GetClient(),
-		FileSystem: fileSystem,
-		Clock:      systemConfig.Clock,
+	configLoader := &ConfigurationLoader{
+		Reader: fileSystem.FileReader,
+	}
+	executionTracker := &ExecutionVcsTracker{
+		Versioning:   systemConfig.VersioningClient.GetClient(),
+		FileSystem:   fileSystem,
+		Clock:        systemConfig.Clock,
+		ConfigLoader: configLoader,
 	}
 	matcher := &fs.ZglobPathMatcher{}
-	configuration, err := ParseConfiguration(rawConfiguration, systemConfig, executionTracker, matcher)
+
+	configFile := parseFlags()
+
+	userConfiguration, err := configLoader.ReadConfiguration(configFile)
+	if err != nil {
+		log.Fatalf("headache configuration error, cannot load\n\t%v\n", err)
+	}
+
+	configuration, err := ParseConfiguration(userConfiguration, systemConfig, executionTracker, matcher)
 	if err != nil {
 		log.Fatalf("headache configuration error, cannot parse\n\t%v\n", err)
 	}
-	Run(configuration, fileSystem)
+
+	if len(configuration.Files) > 0 {
+		Run(configuration, fileSystem)
+		trackRun(configFile, executionTracker)
+	}
 	log.Print("Done!")
 }
 
-func readConfiguration(configFile *string, reader fs.FileReader) Configuration {
-	validateConfiguration(reader, configFile)
-
-	file, err := reader.Read(*configFile)
-	if err != nil {
-		log.Fatalf("headache configuration error, cannot read file:\n\t%v", err)
-	}
-	result := Configuration{}
-	err = json.Unmarshal(file, &result)
-	if err != nil {
-		log.Fatalf("headache configuration error, cannot unmarshall JSON:\n\t%v", err)
-	}
-	return result
+func parseFlags() *string {
+	configFile := flag.String("configuration", "headache.json", "Path to configuration file")
+	flag.Parse()
+	return configFile
 }
 
-func validateConfiguration(reader fs.FileReader, configFile *string) {
-	schema := loadSchema()
-	if schema == nil {
-		return
-	}
-	jsonSchemaValidator := JsonSchemaValidator{
-		Schema:     schema,
-		FileReader: reader,
-	}
-	validationError := jsonSchemaValidator.Validate("file://" + *configFile)
-	if validationError != nil {
-		log.Fatalf("headache configuration error, validation failed\n\t%s\n", validationError)
-	}
-}
-
-func loadSchema() *jsonsch.Schema {
-	schema, err := jsonsch.NewSchema(jsonsch.NewReferenceLoader("https://fbiville.github.io/headache/v1.0.0-M01/schema.json"))
+func trackRun(configFile *string, tracker ExecutionTracker) {
+	err := tracker.TrackExecution(configFile)
 	if err != nil {
-		log.Printf("headache configuration warning: cannot load schema, skipping configuration validation. See reason below:\n\t%v\n", err)
-		return nil
+		log.Printf("headache warning, could not save current execution, see below for details\n\t%v\n", err)
 	}
-	return schema
 }

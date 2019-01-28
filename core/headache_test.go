@@ -31,7 +31,7 @@ var _ = Describe("Headache", func() {
 		t          GinkgoTInterface
 		fileReader *fs_mocks.FileReader
 		fileWriter *fs_mocks.FileWriter
-		fileSystem fs.FileSystem
+		fileSystem *fs.FileSystem
 		delimiter  string
 	)
 
@@ -39,7 +39,7 @@ var _ = Describe("Headache", func() {
 		t = GinkgoT()
 		fileReader = new(fs_mocks.FileReader)
 		fileWriter = new(fs_mocks.FileWriter)
-		fileSystem = fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
+		fileSystem = &fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
 		delimiter = "\n\n"
 	})
 

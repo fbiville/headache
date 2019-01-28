@@ -19,6 +19,7 @@ package helper_test
 import (
 	. "github.com/fbiville/headache/helper"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"testing/quick"
 )
 
@@ -30,6 +31,18 @@ var _ = Describe("String slices", func() {
 		t = GinkgoT()
 	})
 
+	It("compares slices", func() {
+		Expect(SliceEqual(nil, nil)).To(BeTrue())
+		Expect(SliceEqual(nil, []string{})).To(BeFalse())
+		Expect(SliceEqual([]string{}, nil)).To(BeFalse())
+		Expect(SliceEqual([]string{}, []string{})).To(BeTrue())
+		Expect(SliceEqual([]string{"a"}, []string{})).To(BeFalse())
+		Expect(SliceEqual([]string{"a"}, []string{"b"})).To(BeFalse())
+		Expect(SliceEqual([]string{"a", "c"}, []string{"b", "c"})).To(BeFalse())
+		Expect(SliceEqual([]string{"a", "c"}, []string{"a", "c"})).To(BeTrue())
+		Expect(SliceEqual([]string{"a", "c"}, []string{"c", "a"})).To(BeFalse())
+	})
+
 	It("prepends strings to it", func() {
 		f := func(head string, tail []string) bool {
 			result := PrependString(head, tail)
@@ -39,16 +52,5 @@ var _ = Describe("String slices", func() {
 			t.Error(err)
 		}
 	})
-})
 
-func SliceEqual(slice1 []string, slice2 []string) bool {
-	if len(slice1) != len(slice2) {
-		return false
-	}
-	for i := range slice1 {
-		if slice1[i] != slice2[i] {
-			return false
-		}
-	}
-	return true
-}
+})

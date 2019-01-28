@@ -30,14 +30,14 @@ var _ = Describe("Path matcher", func() {
 	var (
 		t          GinkgoTInterface
 		fileReader *fs_mocks.FileReader
-		fileSystem FileSystem
+		fileSystem *FileSystem
 		matcher    *ZglobPathMatcher
 	)
 
 	BeforeEach(func() {
 		t = GinkgoT()
 		fileReader = new(fs_mocks.FileReader)
-		fileSystem = FileSystem{FileReader: fileReader}
+		fileSystem = &FileSystem{FileReader: fileReader}
 		matcher = &ZglobPathMatcher{}
 	})
 
