@@ -61,6 +61,21 @@ func (SlashSlash) GetClosingString() string {
 	return ""
 }
 
+type Hash struct{}
+
+func (Hash) GetName() string {
+	return "Hash"
+}
+func (Hash) GetOpeningString() string {
+	return ""
+}
+func (Hash) GetString() string {
+	return "# "
+}
+func (Hash) GetClosingString() string {
+	return ""
+}
+
 func ParseCommentStyle(str string) CommentStyle {
 	styles := supportedStyles()
 	keys := extractKeys(styles)
@@ -142,6 +157,8 @@ func supportedStyles() map[string]CommentStyle {
 	return map[string]CommentStyle{
 		"SlashStar":  SlashStar{},
 		"SlashSlash": SlashSlash{},
+		"Hash": Hash{},
+
 	}
 }
 

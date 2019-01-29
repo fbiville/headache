@@ -102,7 +102,28 @@ var _ = Describe("Configuration parser", func() {
 		Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
 	})
 
-	It("pre-computes the header contents with a different comment style", func() {
+	It("pre-computes the final configuration with hash comment style", func() {
+		configuration := &core.Configuration{
+			HeaderFile:   "some-header",
+			CommentStyle: "Hash",
+			Includes:     includes,
+			Excludes:     excludes,
+			TemplateData: data,
+		}
+		tracker.On("RetrieveVersionedTemplate", configuration).
+			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license", data, revision), nil)
+		versioningClient.On("GetChanges", revision).Return(initialChanges, nil)
+		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
+		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
+
+		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+
+		Expect(err).To(BeNil())
+		Expect(changeSet.HeaderContents).To(Equal("# Copyright {{.Year}} ACME Labs\n#\n# Some fictional license"))
+		Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
+	})
+
+	It("pre-computes the header contents with SlashStar comment style", func() {
 		configuration := &core.Configuration{
 			HeaderFile:   "some-header",
 			CommentStyle: "SlashStar",
@@ -151,10 +172,14 @@ var _ = Describe("Configuration parser", func() {
 		Expect(regex.MatchString(changeSet.HeaderContents)).To(BeTrue(), "Regex should match contents")
 		Expect(regex.MatchString("// Copyright 2018 ACME Labs")).To(BeTrue(),
 			"Regex should match contents with different comment style")
+		Expect(regex.MatchString("# Copyright 2018 ACME Labs")).To(BeTrue(),
+			"Regex should match contents with different comment style")
 		Expect(regex.MatchString(`/*
  * Copyright 2018-2042 ACME World corporation
  */`)).To(BeTrue(), "Regex should match contents with different data")
 		Expect(regex.MatchString("// Copyright 2009-2012 ACME!")).To(BeTrue(),
+			"Regex should match contents with different data and comment style")
+		Expect(regex.MatchString("# Copyright 2009-2012 ACME!")).To(BeTrue(),
 			"Regex should match contents with different data and comment style")
 	})
 

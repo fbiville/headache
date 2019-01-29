@@ -56,9 +56,18 @@ var _ = Describe("Configuration validator", func() {
 		Expect(validationError).To(BeNil())
 	})
 
-	It("accepts valid configuration", func() {
+	It("accepts valid configuration with SlashSlash comment style", func() {
 		fileReader.On("Open", "docs.json").
-			Return(inMemoryFile(`{"headerFile": "some-file.txt", "style": "SlashStar", "includes": ["**/*.go"], "data": {"FooBar": true}}`), nil)
+			Return(inMemoryFile(`{"headerFile": "some-file.txt", "style": "SlashSlash", "includes": ["**/*.go"], "data": {"FooBar": true}}`), nil)
+
+		validationError := validator.Validate("file://docs.json")
+
+		Expect(validationError).To(BeNil())
+	})
+
+	It("accepts valid configuration with Hash comment style", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-file.txt", "style": "Hash", "includes": ["**/*.go"]}`), nil)
 
 		validationError := validator.Validate("file://docs.json")
 
