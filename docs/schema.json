@@ -14,7 +14,8 @@
       "type": "string",
       "enum": [
         "SlashStar",
-        "SlashSlash"
+        "SlashSlash",
+        "Hash"
       ]
     },
     "includes": {
