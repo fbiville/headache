@@ -144,18 +144,21 @@ func GetFileHistory(vcs Vcs, file string, clock Clock) (*FileHistory, error) {
 		LastEditionYear: defaultYear,
 	}
 	if lineCount > 0 {
-		timestamp, err := strconv.ParseInt(lines[lineCount-1], 10, 64)
+		lastCommitTimestamp, err := strconv.ParseInt(lines[lineCount-1], 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		history.CreationYear = time.Unix(timestamp, 0).Year()
+		commitYear := time.Unix(lastCommitTimestamp, 0).Year()
+		history.CreationYear = commitYear
+		history.LastEditionYear = commitYear
+
 	}
 	if lineCount > 1 {
-		timestamp, err := strconv.ParseInt(lines[0], 10, 64)
+		firstCommitTimestamp, err := strconv.ParseInt(lines[0], 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		history.LastEditionYear = time.Unix(timestamp, 0).Year()
+		history.LastEditionYear = time.Unix(firstCommitTimestamp, 0).Year()
 	}
 	return &history, nil
 }

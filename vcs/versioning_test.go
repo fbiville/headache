@@ -27,9 +27,9 @@ import (
 var _ = Describe("VCS", func() {
 
 	var (
-		t          GinkgoTInterface
-		vcs        Vcs
-		vcsMock    *vcs_mocks.Vcs
+		t       GinkgoTInterface
+		vcs     Vcs
+		vcsMock *vcs_mocks.Vcs
 	)
 
 	BeforeEach(func() {
@@ -97,8 +97,10 @@ A	license-header.txt
 		}))
 	})
 
-	It("retrieves file history", func() {
-		vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(`1537974554
+	Describe("retrieves file history", func() {
+
+		It("retrieves the first and last commit years", func() {
+			vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(`1537974554
 1537973963
 1537970000
 1537846444
@@ -106,36 +108,36 @@ A	license-header.txt
 1499817600
 `, nil)
 
-		history, err := GetFileHistory(vcs, "somefile.go", FakeTime{})
+			history, err := GetFileHistory(vcs, "somefile.go", FakeTime{})
 
-		Expect(err).To(BeNil())
-		Expect(history.CreationYear).To(Equal(2017))
-		Expect(history.LastEditionYear).To(Equal(2018))
-	})
+			Expect(err).To(BeNil())
+			Expect(history.CreationYear).To(Equal(2017))
+			Expect(history.LastEditionYear).To(Equal(2018))
+		})
 
-	It("returns current year for unversioned files", func() {
-		vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(``, nil)
-		fakeTime := FakeTime{timestamp: fakeNow}
-		currentYear := fakeTime.Now().Year()
+		It("returns current year for unversioned files", func() {
+			vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(``, nil)
+			fakeTime := FakeTime{timestamp: fakeNow}
+			currentYear := fakeTime.Now().Year()
 
-		history, err := GetFileHistory(vcs, "somefile.go", fakeTime)
+			history, err := GetFileHistory(vcs, "somefile.go", fakeTime)
 
-		Expect(err).To(BeNil())
-		Expect(history.CreationYear).To(Equal(currentYear))
-		Expect(history.LastEditionYear).To(Equal(currentYear))
-	})
+			Expect(err).To(BeNil())
+			Expect(history.CreationYear).To(Equal(currentYear))
+			Expect(history.LastEditionYear).To(Equal(currentYear))
+		})
 
-	It("returns the current year for the last edition year for file committed only once", func() {
-		vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(`405561600
+		It("returns the commit year for both creation and last edition year when file has been committed only once", func() {
+			vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(`405561600
 `, nil)
-		fakeTime := FakeTime{timestamp: fakeNow}
-		currentYear := fakeTime.Now().Year()
+			fakeTime := FakeTime{timestamp: fakeNow}
+			history, err := GetFileHistory(vcs, "somefile.go", fakeTime)
 
-		history, err := GetFileHistory(vcs, "somefile.go", fakeTime)
+			Expect(err).To(BeNil())
+			Expect(history.CreationYear).To(Equal(1982))
+			Expect(history.LastEditionYear).To(Equal(1982))
+		})
 
-		Expect(err).To(BeNil())
-		Expect(history.CreationYear).To(Equal(1982))
-		Expect(history.LastEditionYear).To(Equal(currentYear))
 	})
 })
 
