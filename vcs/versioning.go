@@ -131,36 +131,47 @@ func GetUncommittedChanges(vcs Vcs) ([]FileChange, error) {
 }
 
 func GetFileHistory(vcs Vcs, file string, clock Clock) (*FileHistory, error) {
-	output, err := vcs.Log("--format=%at", "--", file)
+	output, err := vcs.Log("--follow", "--name-status", "--format=%at", "--", file)
 	if err != nil {
 		return nil, err
 	}
-	lines := Split(output, "\n")
-	lines = lines[0 : len(lines)-1]
-	lineCount := len(lines)
+	timestamps, err := getCommitTimestamps(file, output)
+	if err != nil {
+		return nil, err
+	}
 	defaultYear := clock.Now().Year()
 	history := FileHistory{
 		CreationYear:    defaultYear,
 		LastEditionYear: defaultYear,
 	}
-	if lineCount > 0 {
-		lastCommitTimestamp, err := strconv.ParseInt(lines[lineCount-1], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		commitYear := time.Unix(lastCommitTimestamp, 0).Year()
-		history.CreationYear = commitYear
-		history.LastEditionYear = commitYear
+
+	if len(timestamps) > 0 {
+		minTimestamp := timestamps[len(timestamps)-1]
+		maxTimestamp := timestamps[0]
+		history.CreationYear = time.Unix(minTimestamp, 0).Year()
+		history.LastEditionYear = time.Unix(maxTimestamp, 0).Year()
 
 	}
-	if lineCount > 1 {
-		firstCommitTimestamp, err := strconv.ParseInt(lines[0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		history.LastEditionYear = time.Unix(firstCommitTimestamp, 0).Year()
-	}
 	return &history, nil
+}
+
+func getCommitTimestamps(file string, log string) ([]int64, error) {
+	var result []int64
+	lines := Split(Replace(log, "\n\n", "\n", -1), "\n")
+	lines = lines[0 : len(lines)-1]
+	for i := 1; i < len(lines); i+=2 {
+		line := lines[i]
+		if Split(line, "\t")[0] == "R100" {
+			continue
+		}
+		timestamp, err := strconv.ParseInt(lines[i-1], 10, 64)
+		if err != nil {
+			errorMsg := "could not parse timestamp (line %d) of file %q history. Full commit log below\n%s"
+			return nil, fmt.Errorf(errorMsg, i, file, log)
+		}
+		result = append(result, timestamp)
+	}
+	return result, nil
 }
 
 func merge(changes []FileChange, changes2 []FileChange) []FileChange {

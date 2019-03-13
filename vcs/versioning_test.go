@@ -99,13 +99,26 @@ A	license-header.txt
 
 	Describe("retrieves file history", func() {
 
+		var (
+			logArguments []interface{}
+			fakeTime FakeTime
+		)
+
+		BeforeEach(func() {
+			logArguments = []interface{}{"--follow", "--name-status", "--format=%at", "--"}
+			fakeTime = FakeTime{timestamp: fakeNow}
+		})
+
 		It("retrieves the first and last commit years", func() {
-			vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(`1537974554
-1537973963
-1537970000
-1537846444
+			vcsMock.On("Log", append(logArguments, "somefile.go")...).Return(`1537974554
+
+M	somefile.go
 1537844925
+
+M	somefile.go
 1499817600
+
+A	cmd/commands/ginkgo_suite_test.go
 `, nil)
 
 			history, err := GetFileHistory(vcs, "somefile.go", FakeTime{})
@@ -116,8 +129,7 @@ A	license-header.txt
 		})
 
 		It("returns current year for unversioned files", func() {
-			vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(``, nil)
-			fakeTime := FakeTime{timestamp: fakeNow}
+			vcsMock.On("Log", append(logArguments, "somefile.go")...).Return(``, nil)
 			currentYear := fakeTime.Now().Year()
 
 			history, err := GetFileHistory(vcs, "somefile.go", fakeTime)
@@ -128,14 +140,41 @@ A	license-header.txt
 		})
 
 		It("returns the commit year for both creation and last edition year when file has been committed only once", func() {
-			vcsMock.On("Log", "--format=%at", "--", "somefile.go").Return(`405561600
+			vcsMock.On("Log", append(logArguments, "somefile.go")...).Return(`405561600
+
+A	somefile.go
 `, nil)
-			fakeTime := FakeTime{timestamp: fakeNow}
 			history, err := GetFileHistory(vcs, "somefile.go", fakeTime)
 
 			Expect(err).To(BeNil())
 			Expect(history.CreationYear).To(Equal(1982))
 			Expect(history.LastEditionYear).To(Equal(1982))
+		})
+
+		It("ignores commits which are pure renames", func() {
+			vcsMock.On("Log", append(logArguments, "pkg/core/ginkgo_suite_test.go")...).
+				Return(`1533837684
+
+R100	cmd/commands/ginkgo_suite_test.go	pkg/core/ginkgo_suite_test.go
+1531499156
+
+A	cmd/commands/ginkgo_suite_test.go
+`, nil)
+			history, err := GetFileHistory(vcs, "pkg/core/ginkgo_suite_test.go", fakeTime)
+
+			Expect(err).To(BeNil())
+			Expect(history.CreationYear).To(Equal(2018))
+			Expect(history.LastEditionYear).To(Equal(2018))
+		})
+
+		It("should fail on invalid output", func() {
+			vcsMock.On("Log", append(logArguments, "somefile.go")...).Return(`wat
+saywat
+`, nil)
+
+			_, err := GetFileHistory(vcs, "somefile.go", fakeTime)
+
+			Expect(err).To(MatchError("could not parse timestamp (line 1) of file \"somefile.go\" history. Full commit log below\nwat\nsaywat\n"))
 		})
 
 	})
