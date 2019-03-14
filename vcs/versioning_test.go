@@ -153,9 +153,25 @@ A	somefile.go
 
 		It("ignores commits which are pure renames", func() {
 			vcsMock.On("Log", append(logArguments, "pkg/core/ginkgo_suite_test.go")...).
-				Return(`1533837684
+				Return(`1551657600
 
 R100	cmd/commands/ginkgo_suite_test.go	pkg/core/ginkgo_suite_test.go
+1531499156
+
+A	cmd/commands/ginkgo_suite_test.go
+`, nil)
+			history, err := GetFileHistory(vcs, "pkg/core/ginkgo_suite_test.go", fakeTime)
+
+			Expect(err).To(BeNil())
+			Expect(history.CreationYear).To(Equal(2018))
+			Expect(history.LastEditionYear).To(Equal(2018))
+		})
+
+		It("ignores commits which are pure copies", func() {
+			vcsMock.On("Log", append(logArguments, "pkg/core/ginkgo_suite_test.go")...).
+				Return(`1551657600
+
+C100	cmd/commands/ginkgo_suite_test.go	pkg/core/ginkgo_suite_test.go
 1531499156
 
 A	cmd/commands/ginkgo_suite_test.go

@@ -45,6 +45,11 @@ type FileHistory struct {
 	LastEditionYear int
 }
 
+const (
+	duplicatedRenamedContents = "R100"
+	duplicatedCopiedContents  = "C100"
+)
+
 func (client *Client) GetChanges(revision string) ([]FileChange, error) {
 	vcs := client.Vcs
 	committedChanges, err := GetCommittedChanges(vcs, revision)
@@ -150,8 +155,8 @@ func GetFileHistory(vcs Vcs, file string, clock Clock) (*FileHistory, error) {
 		maxTimestamp := timestamps[0]
 		history.CreationYear = time.Unix(minTimestamp, 0).Year()
 		history.LastEditionYear = time.Unix(maxTimestamp, 0).Year()
-
 	}
+
 	return &history, nil
 }
 
@@ -159,9 +164,10 @@ func getCommitTimestamps(file string, log string) ([]int64, error) {
 	var result []int64
 	lines := Split(Replace(log, "\n\n", "\n", -1), "\n")
 	lines = lines[0 : len(lines)-1]
-	for i := 1; i < len(lines); i+=2 {
+	for i := 1; i < len(lines); i += 2 {
 		line := lines[i]
-		if Split(line, "\t")[0] == "R100" {
+		nameStatus := Split(line, "\t")[0]
+		if nameStatus == duplicatedRenamedContents || nameStatus == duplicatedCopiedContents {
 			continue
 		}
 		timestamp, err := strconv.ParseInt(lines[i-1], 10, 64)
