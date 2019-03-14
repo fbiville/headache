@@ -85,7 +85,7 @@ by retrieving the relevant dates from Git commits).
 This claim could predate any commit associated to the file (imagine a file copied from project
 to project for years).
 
-`headache` will never overwrite the start date of the copyright year if it finds one.
+`headache` will never overwrite the start date of the copyright year if it finds one, if and only if that date occurs earlier than the first commit date of the file.
 
 ### Configuration
 
