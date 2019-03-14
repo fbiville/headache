@@ -79,18 +79,19 @@ func computeCopyrightYears(change *vcs.FileChange, existingHeader string) (strin
 	matches := regex.FindStringSubmatch(existingHeader)
 	creationYear := change.CreationYear
 	if len(matches) > 2 {
-		start, err := strconv.Atoi(matches[1])
+		startYearInHeader, err := strconv.Atoi(matches[1])
 		if err != nil {
 			return "", err
 		}
-		creationYear = start
+		if startYearInHeader < creationYear {
+			creationYear = startYearInHeader
+		}
 	}
-	year := strconv.Itoa(creationYear)
 	lastEditionYear := change.LastEditionYear
 	if lastEditionYear != 0 && lastEditionYear != creationYear {
-		year += fmt.Sprintf("-%d", lastEditionYear)
+		return fmt.Sprintf("%d-%d", creationYear, lastEditionYear), nil
 	}
-	return year, nil
+	return strconv.Itoa(creationYear), nil
 }
 
 func writeToFile(fileWriter fs.FileWriter, path string, newContents []byte) {

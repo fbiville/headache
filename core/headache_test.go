@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package core_test
+package core
 
 import (
-	. "github.com/fbiville/headache/core"
 	"github.com/fbiville/headache/fs"
 	"github.com/fbiville/headache/fs_mocks"
 	"github.com/fbiville/headache/vcs"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	"os"
 	"regexp"
 )
@@ -259,6 +259,34 @@ var _ = Describe("Headache", func() {
 		}
 
 		Run(&configuration, fileSystem)
+	})
+
+	It("replaces single future copyright header date with single commit year", func() {
+		change := vcs.FileChange{
+			Path:            "pkg/fileutils/abs_test.go",
+			CreationYear:    2018,
+			LastEditionYear: 2018,
+		}
+		header := `/*
+ * Copyright 2019 The original author or authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */`
+
+		years, err := computeCopyrightYears(&change, header)
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(years).To(Equal("2018"))
 	})
 })
 
