@@ -20,6 +20,7 @@ import (
 	"github.com/fbiville/headache/fs"
 	"github.com/fbiville/headache/helper"
 	"github.com/fbiville/headache/vcs"
+	"log"
 	"regexp"
 )
 
@@ -94,12 +95,15 @@ func getAffectedFiles(config *Configuration,
 	)
 
 	if versionedTemplate.RequiresFullScan() {
+		log.Print("Unable to get last execution revision, triggering a full scan")
 		changes, err = pathMatcher.ScanAllFiles(config.Includes, config.Excludes, fileSystem)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		fileChanges, err := versioningClient.GetChanges(versionedTemplate.Revision)
+		revision := versionedTemplate.Revision
+		log.Printf("Scanning changes since revision %s", revision)
+		fileChanges, err := versioningClient.GetChanges(revision)
 		if err != nil {
 			return nil, err
 		}

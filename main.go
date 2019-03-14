@@ -55,7 +55,10 @@ func main() {
 	if len(configuration.Files) > 0 {
 		Run(configuration, fileSystem)
 		trackRun(configFile, executionTracker)
+	} else {
+		log.Print("No files to process")
 	}
+
 	log.Print("Done!")
 }
 
