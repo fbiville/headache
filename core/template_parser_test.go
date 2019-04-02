@@ -9,6 +9,7 @@ import (
 var _ = Describe("Template parser", func() {
 
 	var template core.HeaderTemplate
+	var yearRangeTemplate core.HeaderTemplate
 	var legacyTemplate core.HeaderTemplate
 
 	BeforeEach(func() {
@@ -18,6 +19,10 @@ var _ = Describe("Template parser", func() {
 		}
 		legacyTemplate = core.HeaderTemplate{
 			Lines: []string{"Copyright (c) {{.Year}} {{.Author}}"},
+			Data:  map[string]string{"Author": "Florent"},
+		}
+		yearRangeTemplate = core.HeaderTemplate{
+			Lines: []string{"Copyright (c) {{.YearRange}} {{.Author}}"},
 			Data:  map[string]string{"Author": "Florent"},
 		}
 	})
@@ -34,6 +39,18 @@ var _ = Describe("Template parser", func() {
 		Expect(result.ActualContent).To(Equal("# Copyright (c) {{.StartYear}} -- {{.EndYear}} Florent"))
 	})
 
+	It("preserves the year range parameter for later substitution", func() {
+		versionedTemplate := &core.VersionedHeaderTemplate{
+			Previous: &yearRangeTemplate,
+			Current:  &yearRangeTemplate,
+			Revision: "",
+		}
+		result, err := core.ParseTemplate(versionedTemplate, core.Hash{})
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.ActualContent).To(Equal("# Copyright (c) {{.YearRange}} Florent"))
+	})
+
 	It("replaces the legacy year range parameter with the newer parameters for later substitution", func() {
 		versionedTemplate := &core.VersionedHeaderTemplate{
 			Previous: &legacyTemplate,
@@ -43,6 +60,6 @@ var _ = Describe("Template parser", func() {
 		result, err := core.ParseTemplate(versionedTemplate, core.Hash{})
 
 		Expect(err).NotTo(HaveOccurred())
-		Expect(result.ActualContent).To(Equal("# Copyright (c) {{.StartYear}}-{{.EndYear}} Florent"))
+		Expect(result.ActualContent).To(Equal("# Copyright (c) {{.YearRange}} Florent"))
 	})
 })

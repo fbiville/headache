@@ -65,8 +65,12 @@ func insertYears(template string, change *vcs.FileChange, existingHeader string)
 	if err != nil {
 		return "", err
 	}
+	data["YearRange"] = strconv.Itoa(startYear)
 	data["StartYear"] = strconv.Itoa(startYear)
 	data["EndYear"] = strconv.Itoa(endYear)
+	if startYear != endYear {
+		data["YearRange"] = fmt.Sprintf("%d-%d", startYear, endYear)
+	}
 	builder := &strings.Builder{}
 	err = t.Execute(builder, data)
 	if err != nil {

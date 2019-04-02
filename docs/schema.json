@@ -40,6 +40,18 @@
         "Year": {
           "$comment": "Year is a reserved property and cannot be used",
           "not": {}
+        },
+        "YearRange": {
+          "$comment": "YearRange is a reserved property and cannot be used",
+          "not": {}
+        },
+        "StartYear": {
+          "$comment": "StartYear is a reserved property and cannot be used",
+          "not": {}
+        },
+        "EndYear": {
+          "$comment": "EndYear is a reserved property and cannot be used",
+          "not": {}
         }
       }
     }

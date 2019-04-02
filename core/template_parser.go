@@ -57,7 +57,8 @@ func ParseTemplate(versionedHeader *VersionedHeaderTemplate, style CommentStyle)
 // injects reserved parameter into template data map by setting values as template placeholders
 // the template will be parsed a second time, file by file, with the actual values
 func injectReservedYearParameter(currentData map[string]string) map[string]string {
-	currentData["Year"] = "{{.StartYear}}-{{.EndYear}}" // backwards compatibility
+	currentData["Year"] = "{{.YearRange}}" // deprecated but kept for backwards compatibility
+	currentData["YearRange"] = "{{.YearRange}}"
 	currentData["StartYear"] = "{{.StartYear}}"
 	currentData["EndYear"] = "{{.EndYear}}"
 	return currentData

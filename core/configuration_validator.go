@@ -58,8 +58,10 @@ func report(errors []json.ResultError) string {
 }
 
 func description(field interface{}, validationError json.ResultError) string {
-	if field == "data.Year" {
-		return "Year is a reserved data parameter and cannot be used"
+	for _, name := range []string{"Year", "YearRange", "StartYear", "EndYear"} {
+		if field == fmt.Sprintf("data.%s", name) {
+			return fmt.Sprintf("%s is a reserved data parameter and cannot be used", name)
+		}
 	}
 	return validationError.Description()
 }
