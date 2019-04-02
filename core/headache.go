@@ -61,11 +61,16 @@ func insertYears(template string, change *vcs.FileChange, existingHeader string)
 		return "", err
 	}
 	data := make(map[string]string)
-	copyrightYears, err := computeCopyrightYears(change, existingHeader)
+	startYear, endYear, err := computeCopyrightYears(change, existingHeader)
 	if err != nil {
 		return "", err
 	}
-	data["Year"] = copyrightYears
+	data["YearRange"] = strconv.Itoa(startYear)
+	data["StartYear"] = strconv.Itoa(startYear)
+	data["EndYear"] = strconv.Itoa(endYear)
+	if startYear != endYear {
+		data["YearRange"] = fmt.Sprintf("%d-%d", startYear, endYear)
+	}
 	builder := &strings.Builder{}
 	err = t.Execute(builder, data)
 	if err != nil {
@@ -74,14 +79,14 @@ func insertYears(template string, change *vcs.FileChange, existingHeader string)
 	return builder.String(), nil
 }
 
-func computeCopyrightYears(change *vcs.FileChange, existingHeader string) (string, error) {
+func computeCopyrightYears(change *vcs.FileChange, existingHeader string) (int, int, error) {
 	regex := regexp.MustCompile(`(\d{4})(?:\s*-\s*(\d{4}))?`)
 	matches := regex.FindStringSubmatch(existingHeader)
 	creationYear := change.CreationYear
 	if len(matches) > 2 {
 		startYearInHeader, err := strconv.Atoi(matches[1])
 		if err != nil {
-			return "", err
+			return 0, 0, err
 		}
 		if startYearInHeader < creationYear {
 			creationYear = startYearInHeader
@@ -89,9 +94,9 @@ func computeCopyrightYears(change *vcs.FileChange, existingHeader string) (strin
 	}
 	lastEditionYear := change.LastEditionYear
 	if lastEditionYear != 0 && lastEditionYear != creationYear {
-		return fmt.Sprintf("%d-%d", creationYear, lastEditionYear), nil
+		return creationYear, lastEditionYear, nil
 	}
-	return strconv.Itoa(creationYear), nil
+	return creationYear, creationYear, nil
 }
 
 func writeToFile(fileWriter fs.FileWriter, path string, newContents []byte) {

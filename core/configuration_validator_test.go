@@ -128,6 +128,33 @@ var _ = Describe("Configuration validator", func() {
 		Expect(validationError.Error()).To(HaveSuffix("Year is a reserved data parameter and cannot be used"))
 	})
 
+	It("rejects configuration with reserved year range parameter", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-header.txt", "style": "SlashSlash", "includes": ["**/*.*"], "data": {"YearRange": 2019}}`), nil)
+
+		validationError := validator.Validate("file://docs.json")
+
+		Expect(validationError.Error()).To(HaveSuffix("YearRange is a reserved data parameter and cannot be used"))
+	})
+
+	It("rejects configuration with reserved start year parameter", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-header.txt", "style": "SlashSlash", "includes": ["**/*.*"], "data": {"StartYear": 2019}}`), nil)
+
+		validationError := validator.Validate("file://docs.json")
+
+		Expect(validationError.Error()).To(HaveSuffix("StartYear is a reserved data parameter and cannot be used"))
+	})
+
+	It("rejects configuration with reserved end year parameter", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-header.txt", "style": "SlashSlash", "includes": ["**/*.*"], "data": {"EndYear": 2019}}`), nil)
+
+		validationError := validator.Validate("file://docs.json")
+
+		Expect(validationError.Error()).To(HaveSuffix("EndYear is a reserved data parameter and cannot be used"))
+	})
+
 })
 
 func schemaFrom(loader json.JSONLoader) *json.Schema {

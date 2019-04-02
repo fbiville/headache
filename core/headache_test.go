@@ -203,6 +203,31 @@ var _ = Describe("Headache", func() {
 		Run(&configuration, fileSystem)
 	})
 
+	It("automatically inserts the start year only", func() {
+		header := "// some multi-line header from 2022-present\n// with some text"
+		fakeFile := new(fs_mocks.File)
+		fileContents := "hello\nworld"
+		fileName := "some-file-1"
+		fileReader.On("Read", fileName).
+			Return([]byte(fileContents), nil).
+			Once()
+		fileWriter.On("Open", fileName, os.O_WRONLY|os.O_TRUNC, os.ModeAppend).
+			Return(fakeFile, nil).
+			Once()
+		fakeFile.On(
+			"Write",
+			[]byte(header+delimiter+fileContents)).Return(nil).Once()
+		fakeFile.On("Close").Return(nil).Once()
+
+		configuration := ChangeSet{
+			HeaderRegex:    getRegex("some multi-line header from {{.StartYear}}-present", "with some text"),
+			HeaderContents: header,
+			Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2022, LastEditionYear: 2034}},
+		}
+
+		Run(&configuration, fileSystem)
+	})
+
 	It("matches similar header and replaces it", func() {
 		oldHeader := `/*
  *   Some Header 2022 -   2023 and stuff .
@@ -283,10 +308,11 @@ var _ = Describe("Headache", func() {
  * limitations under the License.
  */`
 
-		years, err := computeCopyrightYears(&change, header)
+		startYear, endYear, err := computeCopyrightYears(&change, header)
 
 		Expect(err).NotTo(HaveOccurred())
-		Expect(years).To(Equal("2018"))
+		Expect(startYear).To(Equal(2018))
+		Expect(endYear).To(Equal(2018))
 	})
 })
 

@@ -23,9 +23,9 @@ By default, `headache` looks for a configuration file named `headache.json` in t
 }
 ```
 
-`license-header.txt` (note the absence of `Year` parameter in the configuration file):
+`license-header.txt` (note the absence of `YearRange` parameter in the configuration file):
 ```
-Copyright {{.Year}} {{.Owner}}
+Copyright {{.YearRange}} {{.Owner}}
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -70,20 +70,16 @@ Now that you read this, here are two important points:
 
  - Copyright years have to be updated when a significant change occurs.
  
-There is, to the author knowledge, no automatic solution to distinguish a trivial
-change from a significant one.
+There is, to the author knowledge, no automatic solution to distinguish a trivial change from a significant one.
 
-Based on this premise, `headache` will process all files matching the configuration
-and that have been changed since its last execution.
-`headache` will then compute the copyright year, file by file, from their available versioning information (typically 
-by retrieving the relevant dates from Git commits).
+Based on this premise, `headache` will process all files matching the configuration and that have been changed since its last execution.
+`headache` will then compute the copyright year, file by file, from their available versioning information (typically by retrieving the relevant dates from Git commits).
 
 **It is up to the project maintainer to discard the generated changes if they are not relevant.**
 
  - > The [first] date on the [copyright] notice establishes how far back the claim is made.
  
-This claim could predate any commit associated to the file (imagine a file copied from project
-to project for years).
+This claim could predate any commit associated to the file (imagine a file copied from project to project for years).
 
 `headache` will never overwrite the start date of the copyright year if it finds one, if and only if that date occurs earlier than the first commit date of the file.
 
@@ -97,10 +93,22 @@ In layman's terms, here are all the possible settings:
 Setting            | Type                    | Definition                                             |
 | ---------------- |:----------------------: | -----------------------------------------------------: |
 | `headerFile`     | string                  | **[required]** Path to the parameterized license header. Parameters are referenced with the following syntax: {{.PARAMETER-NAME}}               |
-| `style`          | string                  | **[required]** One of: `SlashStar` (`/* ... */`), `SlashSlash` (`// ...`) |
+| `style`          | string                  | **[required]** See all the possible names [here](https://fbiville.github.io/headache/schema.json) |
 | `includes`       | array of strings        | **[required, min size=1]** File globs to include (`*` and `**` are supported)     |
 | `excludes`       | array of strings        | File globs to exclude (`*` and `**` are supported)     |
-| `data`           | map of string to string | Key-value pairs, matching the parameters used in `headerFile`.<br>Please note that `{{.Year}}` is a reserved parameter and will automatically be computed based on the files versioning information.  |
+| `data`           | map of string to string | Key-value pairs, matching the parameters used in `headerFile` except for the reserved parameters (see below section).
 
 
+#### Reserved parameters
 
+ - `{{.YearRange}}` (formerly `{{.Year}}`) is automatically substituted with either:
+     - a single year if both years in the range are the same
+     - a year range with the earliest commit's year* and latest commit's year
+ - `{{.StartYear}}` is substituted with the earliest commit's year
+ - `{{.EndYear}}` is substituted with the latest commit's year
+ 
+As explained earlier, if a file specifies a start date in its header that is earlier than any commit's year, then that
+date is preserved.
+
+If you want to avoid copyright dates like `2019-2019`, then rely on `{{.YearRange}}`.
+If you need something like `2018-present`, then use `{{.StartYear}}-present` instead.
