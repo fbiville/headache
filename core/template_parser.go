@@ -22,12 +22,12 @@ import (
 	"strings"
 )
 
-type templateResult struct {
-	actualContent  string
-	detectionRegex *regexp.Regexp
+type ParsedTemplate struct { // visible for testing
+	ActualContent  string
+	DetectionRegex *regexp.Regexp
 }
 
-func ParseTemplate(versionedHeader *VersionedHeaderTemplate, style CommentStyle) (*templateResult, error) {
+func ParseTemplate(versionedHeader *VersionedHeaderTemplate, style CommentStyle) (*ParsedTemplate, error) {
 	currentData := injectReservedYearParameter(versionedHeader.Current.Data)
 	commentedLines, err := applyComments(versionedHeader.Current.Lines, style)
 	if err != nil {
@@ -48,16 +48,18 @@ func ParseTemplate(versionedHeader *VersionedHeaderTemplate, style CommentStyle)
 	if err != nil {
 		return nil, err
 	}
-	return &templateResult{
-		actualContent:  builder.String(),
-		detectionRegex: regexp.MustCompile(regex),
+	return &ParsedTemplate{
+		ActualContent:  builder.String(),
+		DetectionRegex: regexp.MustCompile(regex),
 	}, nil
 }
 
-// injects reserved parameter into template data map
-// the template will be parsed a second time, file by file, with the computed .Year value
+// injects reserved parameter into template data map by setting values as template placeholders
+// the template will be parsed a second time, file by file, with the actual values
 func injectReservedYearParameter(currentData map[string]string) map[string]string {
-	currentData["Year"] = "{{.Year}}"
+	currentData["Year"] = "{{.StartYear}}-{{.EndYear}}" // backwards compatibility
+	currentData["StartYear"] = "{{.StartYear}}"
+	currentData["EndYear"] = "{{.EndYear}}"
 	return currentData
 }
 

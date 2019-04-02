@@ -283,10 +283,11 @@ var _ = Describe("Headache", func() {
  * limitations under the License.
  */`
 
-		years, err := computeCopyrightYears(&change, header)
+		startYear, endYear, err := computeCopyrightYears(&change, header)
 
 		Expect(err).NotTo(HaveOccurred())
-		Expect(years).To(Equal("2018"))
+		Expect(startYear).To(Equal(2018))
+		Expect(endYear).To(Equal(2018))
 	})
 })
 

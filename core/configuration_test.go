@@ -98,7 +98,7 @@ var _ = Describe("Configuration parser", func() {
 		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
 
 		Expect(err).To(BeNil())
-		Expect(changeSet.HeaderContents).To(Equal("// Copyright {{.Year}} ACME Labs\n//\n// Some fictional license"))
+		Expect(changeSet.HeaderContents).To(Equal("// Copyright {{.StartYear}}-{{.EndYear}} ACME Labs\n//\n// Some fictional license"))
 		Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
 	})
 
@@ -119,7 +119,7 @@ var _ = Describe("Configuration parser", func() {
 		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
 
 		Expect(err).To(BeNil())
-		Expect(changeSet.HeaderContents).To(Equal("# Copyright {{.Year}} ACME Labs\n#\n# Some fictional license"))
+		Expect(changeSet.HeaderContents).To(Equal("# Copyright {{.StartYear}}-{{.EndYear}} ACME Labs\n#\n# Some fictional license"))
 		Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
 	})
 
@@ -141,7 +141,7 @@ var _ = Describe("Configuration parser", func() {
 
 		Expect(err).To(BeNil())
 		Expect(changeSet.HeaderContents).To(Equal(`/*
- * Copyright {{.Year}} ACME Labs
+ * Copyright {{.StartYear}}-{{.EndYear}} ACME Labs
  *
  * Some fictional license
  */`))
@@ -167,7 +167,7 @@ var _ = Describe("Configuration parser", func() {
 		regex := changeSet.HeaderRegex
 		Expect(err).To(BeNil())
 		Expect(changeSet.HeaderContents).To(Equal(`/*
- * Copyright {{.Year}} ACME Labs
+ * Copyright {{.StartYear}}-{{.EndYear}} ACME Labs
  */`))
 		Expect(regex.MatchString(changeSet.HeaderContents)).To(BeTrue(), "Regex should match contents")
 		Expect(regex.MatchString("// Copyright 2018 ACME Labs")).To(BeTrue(),

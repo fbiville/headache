@@ -76,8 +76,8 @@ func ParseConfiguration(
 	}
 
 	return &ChangeSet{
-		HeaderContents: contents.actualContent,
-		HeaderRegex:    contents.detectionRegex,
+		HeaderContents: contents.ActualContent,
+		HeaderRegex:    contents.DetectionRegex,
 		Files:          changes,
 	}, nil
 }
