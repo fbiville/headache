@@ -1,4 +1,3 @@
 language: go
 go:
   - "1.12"
-script: ./build.sh
