@@ -96,7 +96,11 @@ func getAffectedFiles(config *Configuration,
 	)
 
 	if versionedTemplate.RequiresFullScan() {
-		log.Print("Unable to get last execution revision, triggering a full scan")
+		if versionedTemplate.Revision == "" {
+			log.Print("Unable to get last execution revision, triggering a full scan")
+		} else {
+			log.Printf("Configuration changed since last execution (%s), triggering a full scan", versionedTemplate.Revision)
+		}
 		changes, err = pathMatcher.ScanAllFiles(config.Includes, config.Excludes, fileSystem)
 		if err != nil {
 			return nil, err
