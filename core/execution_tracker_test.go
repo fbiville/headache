@@ -76,11 +76,13 @@ var _ = Describe("The execution tracker", func() {
 		)
 
 		BeforeEach(func() {
+			configurationPath := "/path/to/headache.json"
 			currentHeaderFile = "current-header-file"
 			currentData = map[string]string{"foo": "bar"}
 			currentConfiguration = &core.Configuration{
 				HeaderFile:   currentHeaderFile,
 				TemplateData: currentData,
+				Path:         &configurationPath,
 			}
 			fakeRepositoryRoot = "/path/to"
 			trackerFilePath = fakeRepositoryRoot + "/.headache-run"
@@ -103,22 +105,28 @@ var _ = Describe("The execution tracker", func() {
 			Expect(strings.Join(versionedTemplate.Previous.Lines, "\n")).To(Equal(currentContents))
 		})
 
-		It("returns only the current contents if there were no tracked configuration for backwards compatibility", func() {
+		It("gets the current config at the previous revision if there were no tracked configuration, for backwards compatibility", func() {
+			revision := "some-revision"
 			currentContents := "some\nheader"
 			fileReader.On("Read", currentHeaderFile).Return([]byte(currentContents), nil)
 			vcs.On("Root").Return(fakeRepositoryRoot, nil)
 			fileReader.On("Stat", trackerFilePath).Return(&FakeFileInfo{FileMode: 0777}, nil)
-			vcs.On("LatestRevision", trackerFilePath).Return("some-sha", nil)
+			vcs.On("LatestRevision", trackerFilePath).Return(revision, nil)
 			fileReader.On("Read", trackerFilePath).Return([]byte("no tracked configuration in here"), nil)
+			currentConfigPreviousContents := fmt.Sprintf(`{
+  "headerFile": "%s",
+  "data": {"some": "thing"}
+}`, *currentConfiguration.Path)
+			vcs.On("ShowContentAtRevision", *currentConfiguration.Path, revision).Return(currentConfigPreviousContents, nil)
 
 			versionedTemplate, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
 
 			Expect(err).To(BeNil())
-			Expect(versionedTemplate.Revision).To(BeEmpty())
+			Expect(versionedTemplate.Revision).To(Equal(revision))
 			Expect(versionedTemplate.Current.Data).To(Equal(currentData))
 			Expect(strings.Join(versionedTemplate.Current.Lines, "\n")).To(Equal(currentContents))
-			Expect(versionedTemplate.Previous.Data).To(Equal(currentData))
-			Expect(strings.Join(versionedTemplate.Previous.Lines, "\n")).To(Equal(currentContents))
+			Expect(versionedTemplate.Previous.Data).To(Equal(map[string]string {"some": "thing"}))
+			Expect(strings.Join(versionedTemplate.Previous.Lines, "\n")).To(Equal(currentConfigPreviousContents))
 		})
 
 		It("returns the current and previous contents", func() {

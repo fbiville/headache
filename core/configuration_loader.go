@@ -25,6 +25,7 @@ func (cl *ConfigurationLoader) ReadConfiguration(configFile *string) (*Configura
 	if err != nil {
 		return nil, err
 	}
+	configuration.Path = configFile
 	return configuration, err
 }
 

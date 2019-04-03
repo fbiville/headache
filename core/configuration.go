@@ -46,6 +46,7 @@ type Configuration struct {
 	Includes     []string          `json:"includes"`
 	Excludes     []string          `json:"excludes"`
 	TemplateData map[string]string `json:"data"`
+	Path         *string
 }
 
 type ChangeSet struct {

@@ -60,7 +60,7 @@ func (evt *ExecutionVcsTracker) RetrieveVersionedTemplate(currentConfiguration *
 			Revision: "",
 		}, nil
 	}
-	previousConfiguration, err := evt.readPreviousConfiguration(trackingPath, revision)
+	previousConfiguration, err := evt.readPreviousConfiguration(trackingPath, revision, *currentConfiguration.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -109,11 +109,16 @@ func (evt *ExecutionVcsTracker) getPreviousExecutionRevision() (string, string, 
 	return path, sha, nil
 }
 
-func (evt *ExecutionVcsTracker) readPreviousConfiguration(trackingPath string, revision string) (*Configuration, error) {
+func (evt *ExecutionVcsTracker) readPreviousConfiguration(trackingPath string, revision string, currentConfigPath string) (*Configuration, error) {
 	previousConfigPath, err := evt.getPreviousExecutionConfigurationPath(trackingPath)
-	if err != nil || previousConfigPath == "" {
+	if err != nil {
 		return nil, err
 	}
+	if previousConfigPath == "" {
+		// assume current configuration file was present at the last run
+		previousConfigPath = currentConfigPath
+	}
+
 	previousConfig, err := evt.Versioning.ShowContentAtRevision(previousConfigPath, revision)
 	if err != nil {
 		return nil, err
