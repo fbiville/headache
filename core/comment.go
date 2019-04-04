@@ -100,19 +100,20 @@ func computeRegex(lines []string) []string {
 	}
 
 	result := make([]string, 0)
-	result = append(result, fmt.Sprintf(`(?im)(?:%s\n)?`, combineRegexes(styles,
+	result = append(result, fmt.Sprintf(`(?im)\n*(?:%s\n)?\n*`, combineRegexes(styles,
 		func(style CommentStyle) string {
 			return style.GetOpeningString()
 		})))
 	for _, line := range lines {
-		result = append(result, fmt.Sprintf(`(?:%s)[ \t]*\Q%s\E[ \t\.]*\n?`, combineRegexes(styles,
+		result = append(result, fmt.Sprintf(`\n*(?:(?:%s) ?\n)*\n*`, combineRegexes(styles, emptyCommentedLine)))
+		result = append(result, fmt.Sprintf(`\n*(?:%s)[ \t]*\Q%s\E[ \t\.]*\n*`, combineRegexes(styles,
 			func(style CommentStyle) string {
 				return style.GetString()
 			}),
 			line))
 	}
-	result = append(result, fmt.Sprintf(`(?:(?:%s) ?\n)*`, combineRegexes(styles, emptyCommentedLine)))
-	result = append(result, fmt.Sprintf(`(?:%s)?`, combineRegexes(styles,
+	result = append(result, fmt.Sprintf(`\n*(?:(?:%s) ?\n)*\n*`, combineRegexes(styles, emptyCommentedLine)))
+	result = append(result, fmt.Sprintf(`\n*(?:%s)?\n*`, combineRegexes(styles,
 		func(style CommentStyle) string {
 			return style.GetClosingString()
 		})))

@@ -8,9 +8,11 @@ import (
 
 var _ = Describe("Template parser", func() {
 
-	var template core.HeaderTemplate
-	var yearRangeTemplate core.HeaderTemplate
-	var legacyTemplate core.HeaderTemplate
+	var (
+		template          core.HeaderTemplate
+		yearRangeTemplate core.HeaderTemplate
+		legacyTemplate    core.HeaderTemplate
+	)
 
 	BeforeEach(func() {
 		template = core.HeaderTemplate{
@@ -33,6 +35,7 @@ var _ = Describe("Template parser", func() {
 			Current:  &template,
 			Revision: "",
 		}
+
 		result, err := core.ParseTemplate(versionedTemplate, core.Hash{})
 
 		Expect(err).NotTo(HaveOccurred())
@@ -45,6 +48,7 @@ var _ = Describe("Template parser", func() {
 			Current:  &yearRangeTemplate,
 			Revision: "",
 		}
+
 		result, err := core.ParseTemplate(versionedTemplate, core.Hash{})
 
 		Expect(err).NotTo(HaveOccurred())
@@ -57,9 +61,26 @@ var _ = Describe("Template parser", func() {
 			Current:  &legacyTemplate,
 			Revision: "",
 		}
+
 		result, err := core.ParseTemplate(versionedTemplate, core.Hash{})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.ActualContent).To(Equal("# Copyright (c) {{.YearRange}} Florent"))
+	})
+
+	It("computes a regex that detect headers with newline differences", func() {
+		versionedTemplate := &core.VersionedHeaderTemplate{
+			Previous: &core.HeaderTemplate{Lines:[]string{"hello", "world"}, Data: map[string]string{}},
+			Current:  &core.HeaderTemplate{Lines:[]string{"hello", "world"}, Data: map[string]string{}},
+			Revision: "",
+		}
+
+		result, err := core.ParseTemplate(versionedTemplate, core.SlashSlash{})
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.ActualContent).To(Equal("// hello\n// world"))
+		Expect(result.DetectionRegex.MatchString("// hello\n// world")).To(BeTrue(), "matches exact contents")
+		Expect(result.DetectionRegex.MatchString("\n// hello\n\n\n\n// world\n\n")).To(BeTrue(), "matches with extra newlines")
+		Expect(result.DetectionRegex.MatchString("\n// hello\n// \n// \n\n// world\n// \n\n")).To(BeTrue(), "matches with extra commented empty lines")
 	})
 })
