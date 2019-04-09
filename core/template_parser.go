@@ -22,7 +22,8 @@ import (
 	"strings"
 )
 
-type ParsedTemplate struct { // visible for testing
+type ParsedTemplate struct {
+	// visible for testing
 	ActualContent  string
 	DetectionRegex *regexp.Regexp
 }
@@ -66,20 +67,19 @@ func injectReservedYearParameter(currentData map[string]string) map[string]strin
 
 func applyComments(lines []string, style CommentStyle) ([]string, error) {
 	result := make([]string, 0)
-	if openingLine := style.GetOpeningString(); openingLine != "" {
+	if openingLine := style.GetOpeningSymbol().Value; openingLine != "" {
 		result = append(result, openingLine)
 	}
 	for _, line := range lines {
-		result = append(result, prependLine(style, line))
+		result = append(result, prependLine(style.GetContinuationSymbol().Value, line))
 	}
-	if closingLine := style.GetClosingString(); closingLine != "" {
+	if closingLine := style.GetClosingSymbol().Value; closingLine != "" {
 		result = append(result, closingLine)
 	}
 	return result, nil
 }
 
-func prependLine(style CommentStyle, line string) string {
-	comment := style.GetString()
+func prependLine(comment string, line string) string {
 	if line == "" {
 		return strings.TrimRight(comment, " ")
 	}

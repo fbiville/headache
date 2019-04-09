@@ -26,9 +26,22 @@ import (
 
 type CommentStyle interface {
 	GetName() string
-	GetOpeningString() string
-	GetString() string
-	GetClosingString() string
+	GetOpeningSymbol() *CommentSymbol
+	GetContinuationSymbol() *CommentSymbol
+	GetClosingSymbol() *CommentSymbol
+}
+
+func EmptyCommentSymbol() *CommentSymbol {
+	return &CommentSymbol{Value: ""}
+}
+
+func NewCommentSymbol(value string) *CommentSymbol {
+	return &CommentSymbol{Value: value}
+}
+
+type CommentSymbol struct {
+	Value    string
+	Optional bool
 }
 
 type SlashStar struct{}
@@ -36,14 +49,14 @@ type SlashStar struct{}
 func (SlashStar) GetName() string {
 	return "SlashStar"
 }
-func (SlashStar) GetOpeningString() string {
-	return "/*"
+func (SlashStar) GetOpeningSymbol() *CommentSymbol {
+	return NewCommentSymbol("/*")
 }
-func (SlashStar) GetString() string {
-	return " * "
+func (SlashStar) GetContinuationSymbol() *CommentSymbol {
+	return NewCommentSymbol(" * ")
 }
-func (SlashStar) GetClosingString() string {
-	return " */"
+func (SlashStar) GetClosingSymbol() *CommentSymbol {
+	return NewCommentSymbol(" */")
 }
 
 type SlashSlash struct{}
@@ -51,14 +64,14 @@ type SlashSlash struct{}
 func (SlashSlash) GetName() string {
 	return "SlashSlash"
 }
-func (SlashSlash) GetOpeningString() string {
-	return ""
+func (SlashSlash) GetOpeningSymbol() *CommentSymbol {
+	return EmptyCommentSymbol()
 }
-func (SlashSlash) GetString() string {
-	return "// "
+func (SlashSlash) GetContinuationSymbol() *CommentSymbol {
+	return NewCommentSymbol("// ")
 }
-func (SlashSlash) GetClosingString() string {
-	return ""
+func (SlashSlash) GetClosingSymbol() *CommentSymbol {
+	return EmptyCommentSymbol()
 }
 
 type Hash struct{}
@@ -66,14 +79,14 @@ type Hash struct{}
 func (Hash) GetName() string {
 	return "Hash"
 }
-func (Hash) GetOpeningString() string {
-	return ""
+func (Hash) GetOpeningSymbol() *CommentSymbol {
+	return EmptyCommentSymbol()
 }
-func (Hash) GetString() string {
-	return "# "
+func (Hash) GetContinuationSymbol() *CommentSymbol {
+	return NewCommentSymbol("# ")
 }
-func (Hash) GetClosingString() string {
-	return ""
+func (Hash) GetClosingSymbol() *CommentSymbol {
+	return EmptyCommentSymbol()
 }
 
 func ParseCommentStyle(str string) CommentStyle {
@@ -96,26 +109,26 @@ func ComputeDetectionRegex(lines []string, data map[string]string) (string, erro
 func computeRegex(lines []string) []string {
 	styles := extractValues(supportedStyles())
 	emptyCommentedLine := func(style CommentStyle) string {
-		return style.GetString()
+		return style.GetContinuationSymbol().Value
 	}
 
 	result := make([]string, 0)
 	result = append(result, fmt.Sprintf(`(?im)\n*(?:%s\n)?\n*`, combineRegexes(styles,
 		func(style CommentStyle) string {
-			return style.GetOpeningString()
+			return style.GetOpeningSymbol().Value
 		})))
 	for _, line := range lines {
 		result = append(result, fmt.Sprintf(`\n*(?:(?:%s) ?\n)*\n*`, combineRegexes(styles, emptyCommentedLine)))
 		result = append(result, fmt.Sprintf(`\n*(?:%s)[ \t]*\Q%s\E[ \t\.]*\n*`, combineRegexes(styles,
 			func(style CommentStyle) string {
-				return style.GetString()
+				return style.GetContinuationSymbol().Value
 			}),
 			line))
 	}
 	result = append(result, fmt.Sprintf(`\n*(?:(?:%s) ?\n)*\n*`, combineRegexes(styles, emptyCommentedLine)))
 	result = append(result, fmt.Sprintf(`\n*(?:%s)?\n*`, combineRegexes(styles,
 		func(style CommentStyle) string {
-			return style.GetClosingString()
+			return style.GetClosingSymbol().Value
 		})))
 	return result
 }
@@ -158,8 +171,7 @@ func supportedStyles() map[string]CommentStyle {
 	return map[string]CommentStyle{
 		"SlashStar":  SlashStar{},
 		"SlashSlash": SlashSlash{},
-		"Hash": Hash{},
-
+		"Hash":       Hash{},
 	}
 }
 

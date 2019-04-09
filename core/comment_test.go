@@ -12,8 +12,8 @@ var _ = Describe("Comment", func() {
 		style := ParseCommentStyle("Hash")
 
 		Expect(style.GetName()).To(Equal("Hash"))
-		Expect(style.GetClosingString()).To(Equal(""))
-		Expect(style.GetOpeningString()).To(Equal(""))
-		Expect(style.GetString()).To(Equal("# "))
+		Expect(style.GetClosingSymbol().Value).To(Equal(""))
+		Expect(style.GetOpeningSymbol().Value).To(Equal(""))
+		Expect(style.GetContinuationSymbol().Value).To(Equal("# "))
 	})
 })
