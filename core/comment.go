@@ -39,6 +39,10 @@ func NewCommentSymbol(value string) *CommentSymbol {
 	return &CommentSymbol{Value: value}
 }
 
+func NewOptionalCommentSymbol(value string) *CommentSymbol {
+	return &CommentSymbol{Value: value, Optional: true}
+}
+
 type CommentSymbol struct {
 	Value    string
 	Optional bool
@@ -53,7 +57,7 @@ func (SlashStar) GetOpeningSymbol() *CommentSymbol {
 	return NewCommentSymbol("/*")
 }
 func (SlashStar) GetContinuationSymbol() *CommentSymbol {
-	return NewCommentSymbol(" * ")
+	return NewOptionalCommentSymbol(" * ")
 }
 func (SlashStar) GetClosingSymbol() *CommentSymbol {
 	return NewCommentSymbol(" */")
@@ -89,11 +93,11 @@ func (Hash) GetClosingSymbol() *CommentSymbol {
 	return EmptyCommentSymbol()
 }
 
-func ParseCommentStyle(str string) CommentStyle {
+func ParseCommentStyle(name string) CommentStyle {
 	styles := supportedStyles()
 	keys := extractKeys(styles)
 	for _, key := range keys {
-		if str == key {
+		if name == key {
 			return styles[key]
 		}
 	}
@@ -108,43 +112,48 @@ func ComputeDetectionRegex(lines []string, data map[string]string) (string, erro
 
 func computeRegex(lines []string) []string {
 	styles := extractValues(supportedStyles())
-	emptyCommentedLine := func(style CommentStyle) string {
-		return style.GetContinuationSymbol().Value
+	emptyCommentedLine := func(style CommentStyle) *CommentSymbol {
+		return style.GetContinuationSymbol()
 	}
 
 	result := make([]string, 0)
 	result = append(result, fmt.Sprintf(`(?im)\n*(?:%s\n)?\n*`, combineRegexes(styles,
-		func(style CommentStyle) string {
-			return style.GetOpeningSymbol().Value
+		func(style CommentStyle) *CommentSymbol {
+			return style.GetOpeningSymbol()
 		})))
 	for _, line := range lines {
 		result = append(result, fmt.Sprintf(`\n*(?:(?:%s) ?\n)*\n*`, combineRegexes(styles, emptyCommentedLine)))
 		result = append(result, fmt.Sprintf(`\n*(?:%s)[ \t]*\Q%s\E[ \t\.]*\n*`, combineRegexes(styles,
-			func(style CommentStyle) string {
-				return style.GetContinuationSymbol().Value
+			func(style CommentStyle) *CommentSymbol {
+				return style.GetContinuationSymbol()
 			}),
 			line))
 	}
 	result = append(result, fmt.Sprintf(`\n*(?:(?:%s) ?\n)*\n*`, combineRegexes(styles, emptyCommentedLine)))
 	result = append(result, fmt.Sprintf(`\n*(?:%s)?\n*`, combineRegexes(styles,
-		func(style CommentStyle) string {
-			return style.GetClosingSymbol().Value
+		func(style CommentStyle) *CommentSymbol {
+			return style.GetClosingSymbol()
 		})))
 	return result
 }
 
-func combineRegexes(styles []CommentStyle, getLine func(CommentStyle) string) string {
+func combineRegexes(styles []CommentStyle, getSymbol func(CommentStyle) *CommentSymbol) string {
 	regexes := make([]string, 0)
 	for _, style := range styles {
-		if line := getLine(style); line != "" {
-			regexes = append(regexes, escape(line))
+		if symbol := getSymbol(style); symbol.Value != "" {
+			regexes = append(regexes, escape(symbol))
 		}
 	}
 	return strings.Join(regexes, "|")
 }
 
-func escape(str string) string {
-	return strings.TrimRight(strings.Replace(regexp.QuoteMeta(str), "/", `\/`, -1), " ")
+func escape(symbol *CommentSymbol) string {
+	value := symbol.Value
+	result := strings.TrimRight(strings.Replace(regexp.QuoteMeta(value), "/", `\/`, -1), " ")
+	if symbol.Optional {
+		return fmt.Sprintf("(?:%s)?", value)
+	}
+	return result
 }
 
 func injectDataRegex(result string, data map[string]string) (string, error) {
