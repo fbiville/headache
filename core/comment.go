@@ -76,6 +76,22 @@ func (Hash) GetClosingString() string {
 	return ""
 }
 
+type DashDash struct {
+}
+
+func (DashDash) GetName() string {
+	return "DashDash"
+}
+func (DashDash) GetOpeningString() string {
+	return ""
+}
+func (DashDash) GetString() string {
+	return "-- "
+}
+func (DashDash) GetClosingString() string {
+	return ""
+}
+
 func ParseCommentStyle(str string) CommentStyle {
 	styles := supportedStyles()
 	keys := extractKeys(styles)
@@ -158,8 +174,8 @@ func supportedStyles() map[string]CommentStyle {
 	return map[string]CommentStyle{
 		"SlashStar":  SlashStar{},
 		"SlashSlash": SlashSlash{},
-		"Hash": Hash{},
-
+		"Hash":       Hash{},
+		"DashDash":   DashDash{},
 	}
 }
 

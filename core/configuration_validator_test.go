@@ -17,14 +17,15 @@
 package core_test
 
 import (
+	"io"
+	"net/http"
+	"os"
+
 	"github.com/fbiville/headache/core"
 	"github.com/fbiville/headache/fs_mocks"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	json "github.com/xeipuuv/gojsonschema"
-	"io"
-	"net/http"
-	"os"
 )
 
 var _ = Describe("Configuration validator", func() {
@@ -59,6 +60,15 @@ var _ = Describe("Configuration validator", func() {
 	It("accepts valid configuration with SlashSlash comment style", func() {
 		fileReader.On("Open", "docs.json").
 			Return(inMemoryFile(`{"headerFile": "some-file.txt", "style": "SlashSlash", "includes": ["**/*.go"], "data": {"FooBar": true}}`), nil)
+
+		validationError := validator.Validate("file://docs.json")
+
+		Expect(validationError).To(BeNil())
+	})
+
+	It("accepts valid configuration with DashDash comment style", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-file.txt", "style": "DashDash", "includes": ["**/*.go"]}`), nil)
 
 		validationError := validator.Validate("file://docs.json")
 

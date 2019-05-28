@@ -17,6 +17,8 @@
 package core_test
 
 import (
+	"strings"
+
 	"github.com/fbiville/headache/core"
 	"github.com/fbiville/headache/core_mocks"
 	"github.com/fbiville/headache/fs"
@@ -26,7 +28,6 @@ import (
 	"github.com/fbiville/headache/vcs_mocks"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"strings"
 )
 
 var _ = Describe("Configuration parser", func() {
@@ -99,6 +100,27 @@ var _ = Describe("Configuration parser", func() {
 
 		Expect(err).To(BeNil())
 		Expect(changeSet.HeaderContents).To(Equal("// Copyright {{.YearRange}} ACME Labs\n//\n// Some fictional license"))
+		Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
+	})
+
+	It("pre-computes the final configuration with dashdash comment style", func() {
+		configuration := &core.Configuration{
+			HeaderFile:   "some-header",
+			CommentStyle: "DashDash",
+			Includes:     includes,
+			Excludes:     excludes,
+			TemplateData: data,
+		}
+		tracker.On("RetrieveVersionedTemplate", configuration).
+			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license", data, revision), nil)
+		versioningClient.On("GetChanges", revision).Return(initialChanges, nil)
+		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
+		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
+
+		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+
+		Expect(err).To(BeNil())
+		Expect(changeSet.HeaderContents).To(Equal("-- Copyright {{.YearRange}} ACME Labs\n--\n-- Some fictional license"))
 		Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
 	})
 

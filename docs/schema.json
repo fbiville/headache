@@ -15,7 +15,8 @@
       "enum": [
         "SlashStar",
         "SlashSlash",
-        "Hash"
+        "Hash",
+        "DashDash"
       ]
     },
     "includes": {
