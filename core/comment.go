@@ -92,6 +92,22 @@ func (DashDash) GetClosingString() string {
 	return ""
 }
 
+type SemiColon struct {
+}
+
+func (SemiColon) GetName() string {
+	return "SemiColon"
+}
+func (SemiColon) GetOpeningString() string {
+	return ""
+}
+func (SemiColon) GetString() string {
+	return "; "
+}
+func (SemiColon) GetClosingString() string {
+	return ""
+}
+
 func ParseCommentStyle(str string) CommentStyle {
 	styles := supportedStyles()
 	keys := extractKeys(styles)
@@ -176,6 +192,7 @@ func supportedStyles() map[string]CommentStyle {
 		"SlashSlash": SlashSlash{},
 		"Hash":       Hash{},
 		"DashDash":   DashDash{},
+		"SemiColon": SemiColon{},
 	}
 }
 

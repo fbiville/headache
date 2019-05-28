@@ -25,4 +25,13 @@ var _ = Describe("Comment", func() {
 		Expect(style.GetOpeningString()).To(Equal(""))
 		Expect(style.GetString()).To(Equal("-- "))
 	})
+
+	It("matches SemiColon comment style", func() {
+		style := ParseCommentStyle("SemiColon")
+
+		Expect(style.GetName()).To(Equal("SemiColon"))
+		Expect(style.GetClosingString()).To(Equal(""))
+		Expect(style.GetOpeningString()).To(Equal(""))
+		Expect(style.GetString()).To(Equal("; "))
+	})
 })

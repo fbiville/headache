@@ -75,6 +75,15 @@ var _ = Describe("Configuration validator", func() {
 		Expect(validationError).To(BeNil())
 	})
 
+	It("accepts valid configuration with SemiColon comment style", func() {
+		fileReader.On("Open", "docs.json").
+			Return(inMemoryFile(`{"headerFile": "some-file.txt", "style": "SemiColon", "includes": ["**/*.go"]}`), nil)
+
+		validationError := validator.Validate("file://docs.json")
+
+		Expect(validationError).To(BeNil())
+	})
+
 	It("accepts valid configuration with Hash comment style", func() {
 		fileReader.On("Open", "docs.json").
 			Return(inMemoryFile(`{"headerFile": "some-file.txt", "style": "Hash", "includes": ["**/*.go"]}`), nil)
