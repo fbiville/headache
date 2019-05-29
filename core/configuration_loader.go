@@ -51,7 +51,7 @@ func (cl *ConfigurationLoader) validateConfiguration(configFile *string) error {
 }
 
 func loadSchema() *jsonsch.Schema {
-	schema, err := jsonsch.NewSchema(jsonsch.NewReferenceLoader("https://fbiville.github.io/headache/v1.0.0-M03/schema.json"))
+	schema, err := jsonsch.NewSchema(jsonsch.NewReferenceLoader("https://fbiville.github.io/headache/schema.json"))
 	if err != nil {
 		log.Printf("headache configuration warning: cannot load schema, skipping configuration validation. See reason below:\n\t%v\n", err)
 		return nil
