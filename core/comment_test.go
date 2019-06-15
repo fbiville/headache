@@ -23,5 +23,6 @@ var _ = Describe("Comment", func() {
 		Entry("matches Hash comment style", "Hash", "", "", "# "),
 		Entry("matches DashDash comment style", "DashDash", "", "", "-- "),
 		Entry("matches SemiColon comment style", "SemiColon", "", "", "; "),
+		Entry("matches REM comment style", "REM", "", "", "REM "),
 	)
 })

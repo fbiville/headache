@@ -166,6 +166,27 @@ var _ = Describe("Configuration parser", func() {
 		Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
 	})
 
+	It("pre-computes the final configuration with REM comment style", func() {
+		configuration := &core.Configuration{
+			HeaderFile:   "some-header",
+			CommentStyle: "REM",
+			Includes:     includes,
+			Excludes:     excludes,
+			TemplateData: data,
+		}
+		tracker.On("RetrieveVersionedTemplate", configuration).
+			Return(unchangedHeaderContents("Copyright {{.Year}} {{.Owner}}\n\nSome fictional license", data, revision), nil)
+		versioningClient.On("GetChanges", revision).Return(initialChanges, nil)
+		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
+		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
+
+		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+
+		Expect(err).To(BeNil())
+		Expect(changeSet.HeaderContents).To(Equal("REM Copyright {{.YearRange}} ACME Labs\nREM\nREM Some fictional license"))
+		Expect(onlyPaths(changeSet.Files)).To(Equal([]FileChange{{Path: "hello-world.go"}}))
+	})
+
 	It("pre-computes the header contents with SlashStar comment style", func() {
 		configuration := &core.Configuration{
 			HeaderFile:   "some-header",
