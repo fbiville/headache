@@ -17,7 +17,8 @@
         "SlashSlash",
         "Hash",
         "DashDash",
-        "SemiColon"
+        "SemiColon",
+        "REM"
       ]
     },
     "includes": {

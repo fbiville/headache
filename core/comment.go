@@ -108,6 +108,23 @@ func (SemiColon) GetClosingString() string {
 	return ""
 }
 
+
+type Rem struct {
+}
+
+func (Rem) GetName() string {
+	return "REM"
+}
+func (Rem) GetOpeningString() string {
+	return ""
+}
+func (Rem) GetString() string {
+	return "REM "
+}
+func (Rem) GetClosingString() string {
+	return ""
+}
+
 func ParseCommentStyle(str string) CommentStyle {
 	styles := supportedStyles()
 	keys := extractKeys(styles)
@@ -193,6 +210,7 @@ func supportedStyles() map[string]CommentStyle {
 		"Hash":       Hash{},
 		"DashDash":   DashDash{},
 		"SemiColon": SemiColon{},
+		"REM": Rem{},
 	}
 }
 
