@@ -125,6 +125,21 @@ func (Rem) GetClosingString() string {
 	return ""
 }
 
+type SlashStarStar struct{}
+
+func (SlashStarStar) GetName() string {
+	return "SlashStarStar"
+}
+func (SlashStarStar) GetOpeningString() string {
+	return "/**"
+}
+func (SlashStarStar) GetString() string {
+	return " * "
+}
+func (SlashStarStar) GetClosingString() string {
+	return " */"
+}
+
 func ParseCommentStyle(str string) CommentStyle {
 	styles := supportedStyles()
 	keys := extractKeys(styles)
@@ -211,6 +226,7 @@ func supportedStyles() map[string]CommentStyle {
 		"DashDash":   DashDash{},
 		"SemiColon": SemiColon{},
 		"REM": Rem{},
+		"SlashStarStar": SlashStarStar{},
 	}
 }
 
