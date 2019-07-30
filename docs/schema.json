@@ -18,7 +18,8 @@
         "Hash",
         "DashDash",
         "SemiColon",
-        "REM"
+        "REM",
+        "SlashStarStar"
       ]
     },
     "includes": {
