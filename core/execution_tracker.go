@@ -123,7 +123,7 @@ func (evt *ExecutionVcsTracker) readPreviousConfiguration(trackingPath string, r
 	if err != nil {
 		return nil, err
 	}
-	return evt.ConfigLoader.UnmarshallConfiguration([]byte(previousConfig))
+	return evt.ConfigLoader.UnmarshalConfiguration([]byte(previousConfig))
 }
 
 func (evt *ExecutionVcsTracker) readCurrentTemplate(configuration *Configuration) (*HeaderTemplate, error) {

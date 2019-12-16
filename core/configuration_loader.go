@@ -21,7 +21,7 @@ func (cl *ConfigurationLoader) ReadConfiguration(configFile *string) (*Configura
 	if err != nil {
 		return nil, err
 	}
-	configuration, err := cl.UnmarshallConfiguration(payload)
+	configuration, err := cl.UnmarshalConfiguration(payload)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func (cl *ConfigurationLoader) ReadConfiguration(configFile *string) (*Configura
 	return configuration, err
 }
 
-func (cl *ConfigurationLoader) UnmarshallConfiguration(configurationPayload []byte) (*Configuration, error) {
+func (cl *ConfigurationLoader) UnmarshalConfiguration(configurationPayload []byte) (*Configuration, error) {
 	result := Configuration{}
 	err := json.Unmarshal(configurationPayload, &result)
 	if err != nil {
