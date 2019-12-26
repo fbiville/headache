@@ -18,7 +18,6 @@ package core_test
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"github.com/fbiville/headache/core"
 	. "github.com/fbiville/headache/fs"
@@ -27,16 +26,9 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"os"
-	"reflect"
 	"strings"
 	"time"
 )
-
-type FixedClock struct{}
-
-func (*FixedClock) Now() time.Time {
-	return time.Unix(42, 42)
-}
 
 var _ = Describe("The execution tracker", func() {
 
@@ -69,16 +61,19 @@ var _ = Describe("The execution tracker", func() {
 	Describe("when retrieving the versioned header template", func() {
 
 		var (
-			currentHeaderFile    string
-			currentData          map[string]string
-			currentConfiguration *core.Configuration
-			fakeRepositoryRoot   string
-			trackerFilePath      string
+			currentHeaderFile     string
+			currentHeaderContents string
+			currentData           map[string]string
+			currentConfiguration  *core.Configuration
+
+			fakeRepositoryRoot string
+			trackerFilePath    string
 		)
 
 		BeforeEach(func() {
 			configurationPath := "/path/to/headache.json"
 			currentHeaderFile = "current-header-file"
+			currentHeaderContents = "some\nheader"
 			currentData = map[string]string{"foo": "bar"}
 			currentConfiguration = &core.Configuration{
 				HeaderFile:   currentHeaderFile,
@@ -89,189 +84,346 @@ var _ = Describe("The execution tracker", func() {
 			trackerFilePath = fakeRepositoryRoot + "/.headache-run"
 		})
 
-		It("returns only the current contents if there were no previous execution", func() {
-			currentContents := "some\nheader"
-			fileReader.On("Read", currentHeaderFile).Return([]byte(currentContents), nil)
-			vcs.On("Root").Return(fakeRepositoryRoot, nil)
-			fileReader.On("Stat", trackerFilePath).Return(&FakeFileInfo{FileMode: 0777}, nil)
-			vcs.On("LatestRevision", trackerFilePath).Return("", nil)
+		Describe("for the first execution ever of headache", func() {
 
-			versionedTemplate, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+			Context("without any errors", func() {
+				BeforeEach(func() {
+					fileReader.On("Read", currentHeaderFile).
+						Return([]byte(currentHeaderContents), nil)
+					vcs.On("Root").
+						Return(fakeRepositoryRoot, nil)
+					fileReader.On("Stat", trackerFilePath).
+						Return(nil, os.ErrNotExist)
+				})
 
-			Expect(err).To(BeNil())
-			Expect(versionedTemplate.Revision).To(BeEmpty())
-			Expect(versionedTemplate.Current.Data).To(Equal(currentData))
-			Expect(strings.Join(versionedTemplate.Current.Lines, "\n")).To(Equal(currentContents))
-			Expect(versionedTemplate.Previous.Data).To(Equal(currentData))
-			Expect(strings.Join(versionedTemplate.Previous.Lines, "\n")).To(Equal(currentContents))
+				It("returns the current contents as current and former, and returns no revision", func() {
+					versionedTemplate, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+
+					Expect(err).NotTo(HaveOccurred())
+					Expect(versionedTemplate.Revision).To(BeEmpty())
+					Expect(versionedTemplate.Current).To(Equal(versionedTemplate.Previous))
+					Expect(versionedTemplate.Current.Data).To(Equal(currentData))
+					Expect(strings.Join(versionedTemplate.Current.Lines, "\n")).To(Equal(currentHeaderContents))
+				})
+			})
+
+			Context("with an error when reading current header file", func() {
+				expectedErr := fmt.Errorf("current header error")
+
+				BeforeEach(func() {
+					fileReader.On("Read", currentHeaderFile).
+						Return(nil, expectedErr)
+				})
+
+				It("forwards the error", func() {
+					_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+
+					Expect(err).To(MatchError(expectedErr))
+				})
+			})
+
+			Context("with an error proceeding to repository root", func() {
+				expectedErr := fmt.Errorf("root error")
+
+				BeforeEach(func() {
+					fileReader.On("Read", currentHeaderFile).
+						Return([]byte(currentHeaderContents), nil)
+					vcs.On("Root").
+						Return("", expectedErr)
+				})
+
+				It("forwards the error", func() {
+					_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+
+					Expect(err).To(MatchError(expectedErr))
+				})
+			})
+
+			Context("with an error \"stat'ing\" execution tracker file", func() {
+				expectedErr := fmt.Errorf("tracker file error")
+
+				BeforeEach(func() {
+					fileReader.On("Read", currentHeaderFile).
+						Return([]byte(currentHeaderContents), nil)
+					vcs.On("Root").
+						Return(fakeRepositoryRoot, nil)
+					fileReader.On("Stat", trackerFilePath).
+						Return(nil, expectedErr)
+				})
+
+				It("forwards the error", func() {
+					_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+
+					Expect(err).To(MatchError(expectedErr))
+				})
+			})
+
+			Context("with an invalid execution tracker path", func() {
+				BeforeEach(func() {
+					fileReader.On("Read", currentHeaderFile).
+						Return([]byte(currentHeaderContents), nil)
+					vcs.On("Root").
+						Return(fakeRepositoryRoot, nil)
+					fileReader.On("Stat", trackerFilePath).
+						Return(&FakeFileInfo{FileMode: os.ModeDir}, nil)
+				})
+
+				It("forwards the error", func() {
+					_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+
+					Expect(err).To(MatchError(fmt.Sprintf("'%s' should be a regular file", trackerFilePath)))
+				})
+			})
 		})
 
-		It("gets the current config at the previous revision if there were no tracked configuration, for backwards compatibility", func() {
-			revision := "some-revision"
-			currentContents := "some\nheader"
-			fileReader.On("Read", currentHeaderFile).Return([]byte(currentContents), nil)
-			vcs.On("Root").Return(fakeRepositoryRoot, nil)
-			fileReader.On("Stat", trackerFilePath).Return(&FakeFileInfo{FileMode: 0777}, nil)
-			vcs.On("LatestRevision", trackerFilePath).Return(revision, nil)
-			fileReader.On("Read", trackerFilePath).Return([]byte("no tracked configuration in here"), nil)
-			currentConfigPreviousContents := fmt.Sprintf(`{
+		Describe("after an execution of headache", func() {
+
+			previousHeaderFile := "previous-header-file"
+			previousHeaderContents := "some\nprevious\nheader"
+			lastExecutionRevision := "b7c7db75695d8ffff37d556780a616ffbf5c2696"
+			configurationAtRevision := fmt.Sprintf(`{
   "headerFile": "%s",
   "data": {"some": "thing"}
-}`, *currentConfiguration.Path)
-			vcs.On("ShowContentAtRevision", *currentConfiguration.Path, revision).Return(currentConfigPreviousContents, nil)
+}`, previousHeaderFile)
 
-			versionedTemplate, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+			BeforeEach(func() {
+				fileReader.On("Read", currentHeaderFile).Return([]byte(currentHeaderContents), nil)
+				vcs.On("Root").Return(fakeRepositoryRoot, nil)
+				fileReader.On("Stat", trackerFilePath).Return(&FakeFileInfo{FileMode: 0777}, nil)
+			})
 
-			Expect(err).To(BeNil())
-			Expect(versionedTemplate.Revision).To(Equal(revision))
-			Expect(versionedTemplate.Current.Data).To(Equal(currentData))
-			Expect(strings.Join(versionedTemplate.Current.Lines, "\n")).To(Equal(currentContents))
-			Expect(versionedTemplate.Previous.Data).To(Equal(map[string]string{"some": "thing"}))
-			Expect(strings.Join(versionedTemplate.Previous.Lines, "\n")).To(Equal(currentConfigPreviousContents))
-		})
+			Describe("when the former configuration path has not been serialized (backward compat)", func() {
 
-		It("returns the current and previous contents", func() {
-			previousConfigFile := "previous-config"
-			revision := "some-revision"
-			previousHeaderFile := "previous-header"
-			currentContents := "some\nheader"
-			previousContents := "previous\nheader"
-			fileReader.On("Read", currentHeaderFile).Return([]byte(currentContents), nil)
-			vcs.On("Root").Return(fakeRepositoryRoot, nil)
-			fileReader.On("Stat", trackerFilePath).Return(&FakeFileInfo{FileMode: 0777}, nil)
-			vcs.On("LatestRevision", trackerFilePath).Return(revision, nil)
-			fileReader.On("Read", trackerFilePath).Return([]byte("configuration:"+previousConfigFile), nil)
-			vcs.On("ShowContentAtRevision", previousConfigFile, revision).Return(fmt.Sprintf(`{
-  "headerFile": "%s",
-  "data": {"some": "thing"}
-}`, previousHeaderFile), nil)
-			vcs.On("ShowContentAtRevision", previousHeaderFile, revision).Return(previousContents, nil)
+				Context("with no errors", func() {
 
-			result, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+					BeforeEach(func() {
+						fileReader.On("Read", trackerFilePath).
+							Return([]byte("# Generated by headache | 1547741491 -- commit me!"), nil)
+						vcs.On("LatestRevision", trackerFilePath).
+							Return(lastExecutionRevision, nil)
+						vcs.On("ShowContentAtRevision", *currentConfiguration.Path, lastExecutionRevision).
+							Return(configurationAtRevision, nil)
+						fileReader.On("Read", previousHeaderFile).
+							Return([]byte(previousHeaderContents), nil)
+					})
 
-			Expect(err).To(BeNil())
-			Expect(strings.Join(result.Current.Lines, "\n")).To(Equal(currentContents))
-			Expect(result.Current.Data).To(Equal(currentData))
-			Expect(result.Revision).To(Equal(revision))
-			Expect(strings.Join(result.Previous.Lines, "\n")).To(Equal(previousContents))
-			Expect(result.Previous.Data).To(Equal(map[string]string{"some": "thing"}))
-		})
+					It("reads the current configuration path at the last revision", func() {
+						versionedTemplate, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
 
-		It("fails of the current template cannot be read", func() {
-			expectedError := errors.New("read error")
-			fileReader.On("Read", currentHeaderFile).Return(nil, expectedError)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(versionedTemplate.Revision).To(Equal(lastExecutionRevision))
+						Expect(versionedTemplate.Current.Data).To(Equal(currentData))
+						Expect(strings.Join(versionedTemplate.Current.Lines, "\n")).To(Equal(currentHeaderContents))
+						Expect(versionedTemplate.Previous.Data).To(Equal(map[string]string{"some": "thing"}))
+						Expect(strings.Join(versionedTemplate.Previous.Lines, "\n")).To(Equal(previousHeaderContents))
+					})
+				})
 
-			_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+				Context("with an error when reading the tracker file", func() {
+					expectedErr := fmt.Errorf("tracker file error")
 
-			Expect(err).To(MatchError(expectedError))
-		})
+					BeforeEach(func() {
+						fileReader.On("Read", trackerFilePath).
+							Return(nil, expectedErr)
 
-		It("fails if the current repository root cannot be determined", func() {
-			expectedError := errors.New("root error")
-			fileReader.On("Read", currentHeaderFile).Return([]byte("some\nheader"), nil)
-			vcs.On("Root").Return("", expectedError)
+					})
 
-			_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+					It("forwards the error", func() {
+						_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
 
-			Expect(err).To(MatchError(expectedError))
-		})
+						Expect(err).To(MatchError(expectedErr))
+					})
+				})
 
-		It("fails if it cannot get stats on the tracker file", func() {
-			expectedError := errors.New("stat error")
-			fileReader.On("Read", currentHeaderFile).Return([]byte("some\nheader"), nil)
-			vcs.On("Root").Return(fakeRepositoryRoot, nil)
-			fileReader.On("Stat", trackerFilePath).Return(nil, expectedError)
+				Context("with an error when getting the last execution revision", func() {
+					BeforeEach(func() {
+						fileReader.On("Read", trackerFilePath).
+							Return([]byte("# Generated by headache | 1547741491 -- commit me!"), nil)
+						vcs.On("LatestRevision", trackerFilePath).
+							Return("", fmt.Errorf("some error"))
+					})
 
-			_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+					It("forwards the error", func() {
+						_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
 
-			Expect(err).To(MatchError(expectedError))
-		})
+						Expect(err).To(MatchError("could not detect previous execution's revision"))
+					})
+				})
 
-		It("fails if the tracker file is not a regular file", func() {
-			fileReader.On("Read", currentHeaderFile).Return([]byte("some\nheader"), nil)
-			vcs.On("Root").Return(fakeRepositoryRoot, nil)
-			fileReader.On("Stat", trackerFilePath).Return(&FakeFileInfo{FileMode: os.ModeDir}, nil)
+				Context("with an error when getting the tracker file contents at last execution revision", func() {
+					expectedErr := fmt.Errorf("tracker file at last revision error")
 
-			_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+					BeforeEach(func() {
+						fileReader.On("Read", trackerFilePath).
+							Return([]byte("# Generated by headache | 1547741491 -- commit me!"), nil)
+						vcs.On("LatestRevision", trackerFilePath).
+							Return(lastExecutionRevision, nil)
+						vcs.On("ShowContentAtRevision", *currentConfiguration.Path, lastExecutionRevision).
+							Return("", expectedErr)
+					})
 
-			Expect(err).To(MatchError(fmt.Sprintf("'%s' should be a regular file", trackerFilePath)))
-		})
+					It("forwards the error", func() {
+						_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
 
-		It("fails if the latest execution's revision cannot be retrieved", func() {
-			expectedError := errors.New("revision error")
-			fileReader.On("Read", currentHeaderFile).Return([]byte("some\nheader"), nil)
-			vcs.On("Root").Return(fakeRepositoryRoot, nil)
-			fileReader.On("Stat", trackerFilePath).Return(&FakeFileInfo{FileMode: 0777}, nil)
-			vcs.On("LatestRevision", trackerFilePath).Return("", expectedError)
+						Expect(err).To(MatchError(expectedErr))
+					})
+				})
 
-			_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+				Context("with an error when reading the header file configured at the last revision", func() {
+					expectedErr := fmt.Errorf("previous header file error")
 
-			Expect(err).To(MatchError(expectedError))
-		})
+					BeforeEach(func() {
+						fileReader.On("Read", trackerFilePath).
+							Return([]byte("# Generated by headache | 1547741491 -- commit me!"), nil)
+						vcs.On("LatestRevision", trackerFilePath).
+							Return(lastExecutionRevision, nil)
+						vcs.On("ShowContentAtRevision", *currentConfiguration.Path, lastExecutionRevision).
+							Return(configurationAtRevision, nil)
+						fileReader.On("Read", previousHeaderFile).
+							Return(nil, expectedErr)
+					})
 
-		It("fails if the tracking file cannot be read", func() {
-			expectedError := errors.New("read error")
-			fileReader.On("Read", currentHeaderFile).Return([]byte("some\nheader"), nil)
-			vcs.On("Root").Return(fakeRepositoryRoot, nil)
-			fileReader.On("Stat", trackerFilePath).Return(&FakeFileInfo{FileMode: 0777}, nil)
-			vcs.On("LatestRevision", trackerFilePath).Return("some-revision", nil)
-			fileReader.On("Read", trackerFilePath).Return(nil, expectedError)
+					It("forwards the error", func() {
+						_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
 
-			_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+						Expect(err).To(MatchError(expectedErr))
+					})
+				})
+			})
 
-			Expect(err).To(MatchError(expectedError))
-		})
+			Describe("when the former configuration path has been serialized (legacy configuration)", func() {
+				Context("with no errors", func() {
 
-		It("fails if the tracking file contents cannot be shown at last execution's revision", func() {
-			expectedError := errors.New("show at revision error")
-			previousConfigFile := "previous-config"
-			revision := "some-revision"
-			fileReader.On("Read", currentHeaderFile).Return([]byte("some\nheader"), nil)
-			vcs.On("Root").Return(fakeRepositoryRoot, nil)
-			fileReader.On("Stat", trackerFilePath).Return(&FakeFileInfo{FileMode: 0777}, nil)
-			vcs.On("LatestRevision", trackerFilePath).Return(revision, nil)
-			fileReader.On("Read", trackerFilePath).Return([]byte("configuration:"+previousConfigFile), nil)
-			vcs.On("ShowContentAtRevision", previousConfigFile, revision).Return("", expectedError)
+					serializedConfigurationPath := "/path/to/former/headache.json"
 
-			_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+					BeforeEach(func() {
+						fileReader.On("Read", trackerFilePath).
+							Return([]byte("# Generated by headache | 1547741491 -- commit me!\nconfiguration:"+serializedConfigurationPath), nil)
+						vcs.On("LatestRevision", trackerFilePath).
+							Return(lastExecutionRevision, nil)
+						vcs.On("ShowContentAtRevision", serializedConfigurationPath, lastExecutionRevision).
+							Return(configurationAtRevision, nil)
+						fileReader.On("Read", previousHeaderFile).
+							Return([]byte(previousHeaderContents), nil)
+					})
 
-			Expect(err).To(MatchError(expectedError))
-		})
+					It("reads the former configuration path at the last revision", func() {
+						versionedTemplate, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
 
-		It("fails if the previous configuration cannot be unmarshalled", func() {
-			previousConfigFile := "previous-config"
-			revision := "some-revision"
-			fileReader.On("Read", currentHeaderFile).Return([]byte("some\nheader"), nil)
-			vcs.On("Root").Return(fakeRepositoryRoot, nil)
-			fileReader.On("Stat", trackerFilePath).Return(&FakeFileInfo{FileMode: 0777}, nil)
-			vcs.On("LatestRevision", trackerFilePath).Return(revision, nil)
-			fileReader.On("Read", trackerFilePath).Return([]byte("configuration:"+previousConfigFile), nil)
-			vcs.On("ShowContentAtRevision", previousConfigFile, revision).Return("not-json", nil)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(versionedTemplate.Revision).To(Equal(lastExecutionRevision))
+						Expect(versionedTemplate.Current.Data).To(Equal(currentData))
+						Expect(strings.Join(versionedTemplate.Current.Lines, "\n")).To(Equal(currentHeaderContents))
+						Expect(versionedTemplate.Previous.Data).To(Equal(map[string]string{"some": "thing"}))
+						Expect(strings.Join(versionedTemplate.Previous.Lines, "\n")).To(Equal(previousHeaderContents))
+					})
+				})
+			})
 
-			_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+			Describe("when the former configuration and header template have been serialized", func() {
 
-			Expect(reflect.TypeOf(err).String()).To(Equal("*json.SyntaxError"))
-		})
+				previousConfiguration := `{
+  "headerFile": "./license-header.txt",
+  "style": "SlashStar",
+  "includes": ["**/*.go"],
+  "excludes": ["vendor/**/*", "*_mocks/**/*"],
+  "data": {
+    "Owner": "Florent Biville (@fbiville)"
+  }
+}`
 
-		It("fails if the previous header file cannot be read", func() {
-			expectedError := errors.New("show at revision error")
-			previousConfigFile := "previous-config"
-			revision := "some-revision"
-			previousHeaderFile := "previous-header"
-			fileReader.On("Read", currentHeaderFile).Return([]byte("some\nheader"), nil)
-			vcs.On("Root").Return(fakeRepositoryRoot, nil)
-			fileReader.On("Stat", trackerFilePath).Return(&FakeFileInfo{FileMode: 0777}, nil)
-			vcs.On("LatestRevision", trackerFilePath).Return(revision, nil)
-			fileReader.On("Read", trackerFilePath).Return([]byte("configuration:"+previousConfigFile), nil)
-			vcs.On("ShowContentAtRevision", previousConfigFile, revision).Return(fmt.Sprintf(`{
-  "headerFile": "%s",
-  "data": {}
-}`, previousHeaderFile), nil)
-			vcs.On("ShowContentAtRevision", previousHeaderFile, revision).Return("", expectedError)
+				Context("with no errors", func() {
+					BeforeEach(func() {
+						fileReader.On("Read", trackerFilePath).
+							Return([]byte(fmt.Sprintf("# Generated by headache | 1547741491 -- commit me!\nencoded_configuration:%s\nencoded_header:%s",
+								base64Encode(previousConfiguration),
+								base64Encode(previousHeaderContents))), nil)
+						vcs.On("LatestRevision", trackerFilePath).
+							Return(lastExecutionRevision, nil)
+					})
 
-			_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+					It("reads the encoded data", func() {
+						versionedTemplate, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
 
-			Expect(err).To(MatchError(expectedError))
+						Expect(err).NotTo(HaveOccurred())
+						Expect(versionedTemplate.Revision).To(Equal(lastExecutionRevision))
+						Expect(versionedTemplate.Current.Data).To(Equal(currentData))
+						Expect(strings.Join(versionedTemplate.Current.Lines, "\n")).To(Equal(currentHeaderContents))
+						Expect(versionedTemplate.Previous.Data).To(Equal(map[string]string{"Owner": "Florent Biville (@fbiville)"}))
+						Expect(strings.Join(versionedTemplate.Previous.Lines, "\n")).To(Equal(previousHeaderContents))
+					})
+				})
+
+				Context("with an error when reading misencoded configuration", func() {
+					BeforeEach(func() {
+						fileReader.On("Read", trackerFilePath).
+							Return([]byte(fmt.Sprintf("# Generated by headache | 1547741491 -- commit me!\nencoded_configuration:%s\nencoded_header:%s",
+								"not base 64 encoded",
+								base64Encode(previousHeaderContents))), nil)
+						vcs.On("LatestRevision", trackerFilePath).
+							Return(lastExecutionRevision, nil)
+					})
+
+					It("forwards the error", func() {
+						_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+
+						Expect(err).To(MatchError("could not decode encoded configuration: " +
+							"illegal base64 data at input byte 3"))
+					})
+				})
+
+				Context("with an error when reading encoded malformed configuration", func() {
+					BeforeEach(func() {
+						fileReader.On("Read", trackerFilePath).
+							Return([]byte(fmt.Sprintf("# Generated by headache | 1547741491 -- commit me!\nencoded_configuration:%s\nencoded_header:%s",
+								base64Encode("not JSON"),
+								base64Encode(previousHeaderContents))), nil)
+						vcs.On("LatestRevision", trackerFilePath).
+							Return(lastExecutionRevision, nil)
+					})
+
+					It("forwards the error", func() {
+						_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+
+						Expect(err).To(MatchError("could not unmarshal decoded configuration: " +
+							"invalid character 'o' in literal null (expecting 'u')"))
+					})
+				})
+
+				Context("with an error when not finding encoded header template", func() {
+					BeforeEach(func() {
+						fileReader.On("Read", trackerFilePath).
+							Return([]byte(fmt.Sprintf("# Generated by headache | 1547741491 -- commit me!\nencoded_configuration:%s",
+								base64Encode(previousConfiguration))), nil)
+						vcs.On("LatestRevision", trackerFilePath).
+							Return(lastExecutionRevision, nil)
+					})
+
+					It("forwards the error", func() {
+						_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+
+						Expect(err).To(MatchError("cannot retrieve encoded header template"))
+					})
+				})
+
+				Context("with an error when reading misencoded header template", func() {
+					BeforeEach(func() {
+						fileReader.On("Read", trackerFilePath).
+							Return([]byte(fmt.Sprintf("# Generated by headache | 1547741491 -- commit me!\nencoded_configuration:%s\nencoded_header:%s",
+								base64Encode(previousConfiguration),
+								"not base 64")), nil)
+						vcs.On("LatestRevision", trackerFilePath).
+							Return(lastExecutionRevision, nil)
+					})
+
+					It("forwards the error", func() {
+						_, err := tracker.RetrieveVersionedTemplate(currentConfiguration)
+
+						Expect(err).To(MatchError("could not decode encoded header template: " +
+							"illegal base64 data at input byte 3"))
+					})
+				})
+			})
 		})
 	})
 
@@ -468,4 +620,10 @@ encoded_header:%s
 
 func base64Encode(contents string) string {
 	return base64.StdEncoding.EncodeToString([]byte(contents))
+}
+
+type FixedClock struct{}
+
+func (*FixedClock) Now() time.Time {
+	return time.Unix(42, 42)
 }
