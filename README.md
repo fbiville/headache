@@ -5,7 +5,7 @@ It is biased towards Golang but should work on any other language (provided a co
 
 ## Build status
 
-[![Build Status](https://travis-ci.org/fbiville/headache.svg?branch=master)](https://travis-ci.org/fbiville/headache)
+[![Build Status](https://github.com/fbiville/headache/workflows/CI/badge.svg)](https://github.com/fbiville/headache/actions)
 
 ## Quick start
 
