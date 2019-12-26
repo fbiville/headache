@@ -1,4 +1,4 @@
-.PHONY: build clean test gen-mocks check-mockery help
+.PHONY: all build clean test gen-mocks check-mockery help
 
 OUTPUT = ./headache
 GO_SOURCES = $(shell find . -type f -name '*.go')
@@ -6,13 +6,15 @@ GOBIN ?= $(shell go env GOPATH)/bin
 
 .DEFAULT_GOAL := help
 
+all: clean gen-mocks build test install ## run everything
+
 build: $(OUTPUT) ## build the project binary
 
 test: ## run the project tests
 	GO111MODULE=on go test -v ./...
 
 check-mockery: ## check whether mockery is installed
-	@which mockery > /dev/null || (echo mockery not found: issue \"GO111MODULE=off go get -u  github.com/vektra/mockery/.../\" && false)
+	@which mockery > /dev/null || ((echo 'mockery not found, please run: "cd `mktemp -d` && go get -u github.com/vektra/mockery/.../ && cd -"') && false)
 
 gen-mocks: check-mockery ## generate the project mocks
 	GO111MODULE=on mockery -output helper_mocks -outpkg helper_mocks -dir helper -name Clock \
