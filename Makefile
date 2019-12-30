@@ -30,7 +30,7 @@ install: build ## copy the binary to GOBIN
 	cp $(OUTPUT) $(GOBIN)
 
 $(OUTPUT): $(GO_SOURCES)
-	GO111MODULE=on go build
+	GO111MODULE=on go build -gcflags="all=-N -l"
 
 clean: ## remove the binary
 	rm -f $(OUTPUT)
