@@ -19,8 +19,17 @@ func CommentStyleSorter(styles []CommentStyle) func(i, j int) bool {
 	}
 }
 
-func SupportedStyles() map[string]CommentStyle {
-	commentStyles := []CommentStyle{
+func SupportedStyleCatalog() map[string]CommentStyle {
+	commentStyles := SupportedStyles()
+	result := make(map[string]CommentStyle, len(commentStyles))
+	for _, style := range commentStyles {
+		result[style.GetName()] = style
+	}
+	return result
+}
+
+func SupportedStyles() []CommentStyle {
+	return []CommentStyle{
 		styles.SlashStar{},
 		styles.SlashSlash{},
 		styles.Hash{},
@@ -29,15 +38,10 @@ func SupportedStyles() map[string]CommentStyle {
 		styles.Rem{},
 		styles.SlashStarStar{},
 	}
-	result := make(map[string]CommentStyle, len(commentStyles))
-	for _, style := range commentStyles {
-		result[style.GetName()] = style
-	}
-	return result
 }
 
 func ParseCommentStyle(name string) CommentStyle {
-	commentStyles := SupportedStyles()
+	commentStyles := SupportedStyleCatalog()
 	for styleName, style := range commentStyles {
 		if styleName == name {
 			return style

@@ -11,7 +11,7 @@ import (
 var _ = Describe("Comment styles", func() {
 
 	It("includes the following", func() {
-		styles := SupportedStyles()
+		styles := SupportedStyleCatalog()
 
 		Expect(namesOf(styles)).To(Equal([]string{
 			"DashDash",

@@ -25,48 +25,77 @@ import (
 )
 
 func ComputeHeaderDetectionRegex(lines []string, data map[string]string) (string, error) {
-	return injectDataRegex(strings.Join(computeRegex(lines), ""), data)
+	unprocessedRegex := strings.Join(computeRegex(lines), "")
+	processedRegex, err := injectDataRegex(unprocessedRegex, data)
+	return processedRegex, err
 }
 
 func computeRegex(lines []string) []string {
-	styles := extractValues(SupportedStyles())
-	emptyCommentedLine := func(style CommentStyle) string {
-		return style.GetString()
-	}
-
+	styles := extractValues(SupportedStyleCatalog())
 	result := make([]string, 0)
-	result = append(result, fmt.Sprintf(`(?im)\n*(?:%s\n)?\n*`, combineRegexes(styles,
-		func(style CommentStyle) string {
-			return style.GetOpeningString()
-		})))
+	result = append(result, Flags())
+	result = append(result, OpeningLine(styles))
 	for _, line := range lines {
-		result = append(result, fmt.Sprintf(`\n*(?:(?:%s) ?\n)*\n*`, combineRegexes(styles, emptyCommentedLine)))
-		result = append(result, fmt.Sprintf(`\n*(?:%s)[ \t]*\Q%s\E[ \t\.]*\n*`, combineRegexes(styles,
-			func(style CommentStyle) string {
-				return style.GetString()
-			}),
-			line))
+		if line == "" {
+			continue
+		}
+		result = append(result, commentedEmptyLine(styles))
+		result = append(result, MatchingLine(line, styles))
 	}
-	result = append(result, fmt.Sprintf(`\n*(?:(?:%s) ?\n)*\n*`, combineRegexes(styles, emptyCommentedLine)))
-	result = append(result, fmt.Sprintf(`\n*(?:%s)?\n*`, combineRegexes(styles,
-		func(style CommentStyle) string {
-			return style.GetClosingString()
-		})))
+	result = append(result, commentedEmptyLine(styles))
+	result = append(result, ClosingLine(styles))
 	return result
+}
+
+// visible for testing
+func Flags() string {
+	return "(?im)"
+}
+
+// visible for testing
+func OpeningLine(styles []CommentStyle) string {
+	openingLine := fmt.Sprintf(`([\t\v\f\r ]*%s[\t\v\f\r ]*\n)?`, combineRegexes(styles, func(style CommentStyle) string { return style.GetOpeningString() }))
+	return openingLine
+}
+
+// visible for testing
+func MatchingLine(line string, styles []CommentStyle) string {
+	middleLine := fmt.Sprintf(`[\t\v\f\r ]*%s?[\t\v\f\r ]*\Q%s\E[,.;:?!\t\v\f\r ]*\n?`, combineRegexes(styles, func(style CommentStyle) string { return style.GetString() }), line)
+	builder := strings.Builder{}
+	builder.WriteString(middleLine)
+	return builder.String()
+}
+
+// visible for testing
+func ClosingLine(styles []CommentStyle) string {
+	closingLine := fmt.Sprintf(`(?:[\t\v\f\r ]*%s[\t\v\f\r ]*)?`, combineRegexes(styles, func(style CommentStyle) string { return style.GetClosingString() }))
+	return closingLine
+}
+
+func commentedEmptyLine(styles []CommentStyle) string {
+	emptyLines := combineRegexes(styles, func(style CommentStyle) string { return style.GetString() })
+	return fmt.Sprintf(`(?:%s?\n)*`, emptyLines)
 }
 
 func combineRegexes(styles []CommentStyle, getLine func(CommentStyle) string) string {
 	regexes := make([]string, 0)
 	for _, style := range styles {
-		if line := getLine(style); line != "" {
-			regexes = append(regexes, escape(line))
+		commentSymbol := getLine(style)
+		if line := commentSymbol; line != "" {
+			regex := escape(line)
+			if strings.HasSuffix(commentSymbol, " ") {
+				// right spaces may be formatted away
+				// make the right space optional
+				regex += "?"
+			}
+			regexes = append(regexes, regex)
 		}
 	}
-	return strings.Join(regexes, "|")
+	return fmt.Sprintf("(?:%s)", strings.Join(regexes, "|"))
 }
 
 func escape(str string) string {
-	return strings.TrimRight(strings.Replace(regexp.QuoteMeta(str), "/", `\/`, -1), " ")
+	return strings.Replace(regexp.QuoteMeta(str), "/", `\/`, -1)
 }
 
 func injectDataRegex(result string, data map[string]string) (string, error) {
@@ -75,18 +104,20 @@ func injectDataRegex(result string, data map[string]string) (string, error) {
 		return "", err
 	}
 	builder := &strings.Builder{}
-	err = template.Execute(builder, regexValues(&data))
+	templateParameters := regexValues(data)
+	err = template.Execute(builder, templateParameters)
 	if err != nil {
 		return "", err
 	}
 	return builder.String(), nil
 }
 
-func regexValues(data *map[string]string) *map[string]string {
-	for k := range *data {
-		(*data)[k] = "\\E.*\\Q"
+func regexValues(data map[string]string) map[string]string {
+	result := make(map[string]string)
+	for k := range data {
+		result[k] = `\E.*\Q`
 	}
-	return data
+	return result
 }
 
 func extractValues(commentStyles map[string]CommentStyle) []CommentStyle {

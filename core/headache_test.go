@@ -232,7 +232,7 @@ var _ = Describe("Headache", func() {
 		headache.Run(&configuration)
 	})
 
-	It("matches similar header and replaces it", func() {
+	It("matches similar header with punctuation variation and replaces it", func() {
 		oldHeader := `/*
  *   Some Header 2022 -   2023 and stuff .
  *
