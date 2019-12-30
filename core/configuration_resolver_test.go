@@ -32,21 +32,22 @@ import (
 
 var _ = Describe("Configuration parser", func() {
 	var (
-		t                   GinkgoTInterface
-		fileReader          *fs_mocks.FileReader
-		fileWriter          *fs_mocks.FileWriter
-		fileSystem          *fs.FileSystem
-		versioningClient    *vcs_mocks.VersioningClient
-		tracker             *core_mocks.ExecutionTracker
-		pathMatcher         *fs_mocks.PathMatcher
-		clock               *helper_mocks.Clock
-		initialChanges      []FileChange
-		includes            []string
-		excludes            []string
-		resultingChanges    []FileChange
-		systemConfiguration *core.SystemConfiguration
-		data                map[string]string
-		revision            string
+		t                     GinkgoTInterface
+		fileReader            *fs_mocks.FileReader
+		fileWriter            *fs_mocks.FileWriter
+		fileSystem            *fs.FileSystem
+		versioningClient      *vcs_mocks.VersioningClient
+		tracker               *core_mocks.ExecutionTracker
+		pathMatcher           *fs_mocks.PathMatcher
+		clock                 *helper_mocks.Clock
+		initialChanges        []FileChange
+		includes              []string
+		excludes              []string
+		resultingChanges      []FileChange
+		systemConfiguration   *core.SystemConfiguration
+		data                  map[string]string
+		revision              string
+		configurationResolver *core.ConfigurationResolver
 	)
 
 	BeforeEach(func() {
@@ -71,6 +72,11 @@ var _ = Describe("Configuration parser", func() {
 			"Owner": "ACME Labs",
 		}
 		revision = "some-sha"
+		configurationResolver = &core.ConfigurationResolver{
+			SystemConfiguration: systemConfiguration,
+			ExecutionTracker:    tracker,
+			PathMatcher:         pathMatcher,
+		}
 	})
 
 	AfterEach(func() {
@@ -96,7 +102,7 @@ var _ = Describe("Configuration parser", func() {
 		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
 		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+		changeSet, err := configurationResolver.ResolveEagerly(configuration)
 
 		Expect(err).To(BeNil())
 		Expect(changeSet.HeaderContents).To(Equal("// Copyright {{.YearRange}} ACME Labs\n//\n// Some fictional license"))
@@ -117,7 +123,7 @@ var _ = Describe("Configuration parser", func() {
 		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
 		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+		changeSet, err := configurationResolver.ResolveEagerly(configuration)
 
 		Expect(err).To(BeNil())
 		Expect(changeSet.HeaderContents).To(Equal("-- Copyright {{.YearRange}} ACME Labs\n--\n-- Some fictional license"))
@@ -138,7 +144,7 @@ var _ = Describe("Configuration parser", func() {
 		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
 		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+		changeSet, err := configurationResolver.ResolveEagerly(configuration)
 
 		Expect(err).To(BeNil())
 		Expect(changeSet.HeaderContents).To(Equal("; Copyright {{.YearRange}} ACME Labs\n;\n; Some fictional license"))
@@ -159,7 +165,7 @@ var _ = Describe("Configuration parser", func() {
 		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
 		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+		changeSet, err := configurationResolver.ResolveEagerly(configuration)
 
 		Expect(err).To(BeNil())
 		Expect(changeSet.HeaderContents).To(Equal("# Copyright {{.YearRange}} ACME Labs\n#\n# Some fictional license"))
@@ -180,7 +186,7 @@ var _ = Describe("Configuration parser", func() {
 		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
 		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+		changeSet, err := configurationResolver.ResolveEagerly(configuration)
 
 		Expect(err).To(BeNil())
 		Expect(changeSet.HeaderContents).To(Equal("REM Copyright {{.YearRange}} ACME Labs\nREM\nREM Some fictional license"))
@@ -201,7 +207,7 @@ var _ = Describe("Configuration parser", func() {
 		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
 		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+		changeSet, err := configurationResolver.ResolveEagerly(configuration)
 
 		Expect(err).To(BeNil())
 		Expect(changeSet.HeaderContents).To(Equal("/**\n * Copyright {{.YearRange}} ACME Labs\n *\n * Some fictional license\n */"))
@@ -222,7 +228,7 @@ var _ = Describe("Configuration parser", func() {
 		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
 		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+		changeSet, err := configurationResolver.ResolveEagerly(configuration)
 
 		Expect(err).To(BeNil())
 		Expect(changeSet.HeaderContents).To(Equal(`/*
@@ -247,7 +253,7 @@ var _ = Describe("Configuration parser", func() {
 		pathMatcher.On("MatchFiles", initialChanges, includes, excludes, fileSystem).Return(resultingChanges)
 		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+		changeSet, err := configurationResolver.ResolveEagerly(configuration)
 
 		regex := changeSet.HeaderRegex
 		Expect(err).To(BeNil())
@@ -285,7 +291,7 @@ var _ = Describe("Configuration parser", func() {
 		pathMatcher.On("ScanAllFiles", includes, excludes, fileSystem).Return(resultingChanges, nil)
 		versioningClient.On("AddMetadata", resultingChanges, clock).Return(resultingChanges, nil)
 
-		changeSet, err := core.ParseConfiguration(configuration, systemConfiguration, tracker, pathMatcher)
+		changeSet, err := configurationResolver.ResolveEagerly(configuration)
 
 		regex := changeSet.HeaderRegex
 		Expect(err).To(BeNil())

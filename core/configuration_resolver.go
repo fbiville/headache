@@ -55,13 +55,14 @@ type ChangeSet struct {
 	Files          []vcs.FileChange
 }
 
-func ParseConfiguration(
-	currentConfig *Configuration,
-	system *SystemConfiguration,
-	tracker ExecutionTracker,
-	pathMatcher fs.PathMatcher) (*ChangeSet, error) {
+type ConfigurationResolver struct {
+	SystemConfiguration *SystemConfiguration
+	ExecutionTracker    ExecutionTracker
+	PathMatcher         fs.PathMatcher
+}
 
-	versionedTemplate, err := tracker.RetrieveVersionedTemplate(currentConfig)
+func (resolver *ConfigurationResolver) ResolveEagerly(currentConfig *Configuration) (*ChangeSet, error) {
+	versionedTemplate, err := resolver.ExecutionTracker.RetrieveVersionedTemplate(currentConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,7 @@ func ParseConfiguration(
 		return nil, err
 	}
 
-	changes, err := getAffectedFiles(currentConfig, system, versionedTemplate, pathMatcher)
+	changes, err := resolver.getAffectedFiles(currentConfig, versionedTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -83,13 +84,9 @@ func ParseConfiguration(
 	}, nil
 }
 
-func getAffectedFiles(config *Configuration,
-	sysConfig *SystemConfiguration,
-	versionedTemplate *VersionedHeaderTemplate,
-	pathMatcher fs.PathMatcher) ([]vcs.FileChange, error) {
-
-	versioningClient := sysConfig.VersioningClient
-	fileSystem := sysConfig.FileSystem
+func (resolver *ConfigurationResolver) getAffectedFiles(config *Configuration, versionedTemplate *VersionedHeaderTemplate) ([]vcs.FileChange, error) {
+	versioningClient := resolver.SystemConfiguration.VersioningClient
+	fileSystem := resolver.SystemConfiguration.FileSystem
 	var (
 		changes []vcs.FileChange
 		err     error
@@ -101,7 +98,7 @@ func getAffectedFiles(config *Configuration,
 		} else {
 			log.Printf("Configuration changed since last execution (%s), triggering a full scan", versionedTemplate.Revision)
 		}
-		changes, err = pathMatcher.ScanAllFiles(config.Includes, config.Excludes, fileSystem)
+		changes, err = resolver.PathMatcher.ScanAllFiles(config.Includes, config.Excludes, fileSystem)
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +109,7 @@ func getAffectedFiles(config *Configuration,
 		if err != nil {
 			return nil, err
 		}
-		changes = pathMatcher.MatchFiles(fileChanges, config.Includes, config.Excludes, fileSystem)
+		changes = resolver.PathMatcher.MatchFiles(fileChanges, config.Includes, config.Excludes, fileSystem)
 	}
-	return versioningClient.AddMetadata(changes, sysConfig.Clock)
+	return versioningClient.AddMetadata(changes, resolver.SystemConfiguration.Clock)
 }

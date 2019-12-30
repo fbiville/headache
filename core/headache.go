@@ -28,31 +28,39 @@ import (
 	"strings"
 )
 
-type VcsChangeGetter func(vcs.Vcs, string, string) (error, []vcs.FileChange)
+type Headache struct {
+	Fs *fs.FileSystem
+}
 
-func Run(config *ChangeSet, fileSystem *fs.FileSystem) {
-	for _, change := range config.Files {
-		path := change.Path
-		bytes, err := fileSystem.FileReader.Read(path)
-		if err != nil {
-			log.Fatalf("headache execution error, cannot read file %s\n\t%v", path, err)
-		}
-
-		fileContents := string(bytes)
-		matchLocation := config.HeaderRegex.FindStringIndex(fileContents)
-		existingHeader := ""
-		if matchLocation != nil {
-			existingHeader = fileContents[matchLocation[0]:matchLocation[1]]
-			fileContents = strings.TrimLeft(fileContents[:matchLocation[0]]+fileContents[matchLocation[1]:], "\n")
-		}
-
-		finalHeaderContent, err := insertYears(config.HeaderContents, &change, existingHeader)
-		if err != nil {
-			log.Fatalf("headache execution error, cannot parse header for file %s\n\t%v", path, err)
-		}
-		newContents := append([]byte(fmt.Sprintf("%s%s", finalHeaderContent, "\n\n")), []byte(fileContents)...)
-		writeToFile(fileSystem.FileWriter, path, newContents)
+func (headache *Headache) Run(config *ChangeSet) {
+	currentHeaderDetectionRegex := config.HeaderRegex
+	newHeaderTemplate := config.HeaderContents
+	for _, file := range config.Files {
+		headache.UpdateFile(file, currentHeaderDetectionRegex, newHeaderTemplate)
 	}
+}
+
+func (headache *Headache) UpdateFile(change vcs.FileChange, currentHeaderDetectionRegex *regexp.Regexp, newHeaderTemplate string) {
+	path := change.Path
+	bytes, err := headache.Fs.FileReader.Read(path)
+	if err != nil {
+		log.Fatalf("headache execution error, cannot read file %s\n\t%v", path, err)
+	}
+
+	fileContents := string(bytes)
+	matchLocation := currentHeaderDetectionRegex.FindStringIndex(fileContents)
+	existingHeader := ""
+	if matchLocation != nil {
+		existingHeader = fileContents[matchLocation[0]:matchLocation[1]]
+		fileContents = strings.TrimLeft(fileContents[:matchLocation[0]]+fileContents[matchLocation[1]:], "\n")
+	}
+
+	finalHeaderContent, err := insertYears(newHeaderTemplate, &change, existingHeader)
+	if err != nil {
+		log.Fatalf("headache execution error, cannot parse header for file %s\n\t%v", path, err)
+	}
+	newContents := append([]byte(fmt.Sprintf("%s%s", finalHeaderContent, "\n\n")), []byte(fileContents)...)
+	headache.writeToFile(path, newContents)
 }
 
 func insertYears(template string, change *vcs.FileChange, existingHeader string) (string, error) {
@@ -61,7 +69,7 @@ func insertYears(template string, change *vcs.FileChange, existingHeader string)
 		return "", err
 	}
 	data := make(map[string]string)
-	startYear, endYear, err := computeCopyrightYears(change, existingHeader)
+	startYear, endYear, err := ComputeCopyrightYears(change, existingHeader)
 	if err != nil {
 		return "", err
 	}
@@ -79,7 +87,8 @@ func insertYears(template string, change *vcs.FileChange, existingHeader string)
 	return builder.String(), nil
 }
 
-func computeCopyrightYears(change *vcs.FileChange, existingHeader string) (int, int, error) {
+// visible for testing
+func ComputeCopyrightYears(change *vcs.FileChange, existingHeader string) (int, int, error) {
 	regex := regexp.MustCompile(`(\d{4})(?:\s*-\s*(\d{4}))?`)
 	matches := regex.FindStringSubmatch(existingHeader)
 	creationYear := change.CreationYear
@@ -99,8 +108,8 @@ func computeCopyrightYears(change *vcs.FileChange, existingHeader string) (int, 
 	return creationYear, creationYear, nil
 }
 
-func writeToFile(fileWriter fs.FileWriter, path string, newContents []byte) {
-	file, err := fileWriter.Open(path, os.O_WRONLY|os.O_TRUNC, os.ModeAppend)
+func (headache *Headache) writeToFile(path string, newContents []byte) {
+	file, err := headache.Fs.FileWriter.Open(path, os.O_WRONLY|os.O_TRUNC, os.ModeAppend)
 	if err != nil {
 		log.Fatalf("headache execution error, cannot open file %s\n\t%v", path, err)
 	}

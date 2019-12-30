@@ -26,7 +26,7 @@ import (
 func main() {
 	log.Print("Starting...")
 
-	// poor man's dependency graph
+	// dependency graph - begin
 	systemConfig := DefaultSystemConfiguration()
 	fileSystem := systemConfig.FileSystem
 	configLoader := &ConfigurationLoader{
@@ -38,23 +38,20 @@ func main() {
 		Clock:        systemConfig.Clock,
 		ConfigLoader: configLoader,
 	}
-	matcher := &fs.ZglobPathMatcher{}
-
-	configFile := parseFlags()
-
-	userConfiguration, err := configLoader.ReadConfiguration(configFile)
-	if err != nil {
-		log.Fatalf("headache configuration error, cannot load\n\t%v\n", err)
+	configurationResolver := &ConfigurationResolver{
+		SystemConfiguration: systemConfig,
+		ExecutionTracker:    executionTracker,
+		PathMatcher:         &fs.ZglobPathMatcher{},
 	}
+	headache := &Headache{Fs: fileSystem}
+	// dependency graph - end
 
-	configuration, err := ParseConfiguration(userConfiguration, systemConfig, executionTracker, matcher)
-	if err != nil {
-		log.Fatalf("headache configuration error, cannot parse\n\t%v\n", err)
-	}
-
+	configFile, configuration := loadConfiguration(configLoader, configurationResolver)
 	if len(configuration.Files) > 0 {
-		Run(configuration, fileSystem)
-		trackRun(configFile, executionTracker)
+		headache.Run(configuration)
+		if err := executionTracker.TrackExecution(configFile); err != nil {
+			log.Printf("headache warning, could not save current execution, see below for details\n\t%v\n", err)
+		}
 	} else {
 		log.Print("No files to process")
 	}
@@ -62,15 +59,17 @@ func main() {
 	log.Print("Done!")
 }
 
-func parseFlags() *string {
+func loadConfiguration(configLoader *ConfigurationLoader, configResolver *ConfigurationResolver) (*string, *ChangeSet) {
 	configFile := flag.String("configuration", "headache.json", "Path to configuration file")
 	flag.Parse()
-	return configFile
-}
 
-func trackRun(configFile *string, tracker ExecutionTracker) {
-	err := tracker.TrackExecution(configFile)
+	userConfiguration, err := configLoader.ReadConfiguration(configFile)
 	if err != nil {
-		log.Printf("headache warning, could not save current execution, see below for details\n\t%v\n", err)
+		log.Fatalf("headache configuration error, cannot load\n\t%v\n", err)
 	}
+	configuration, err := configResolver.ResolveEagerly(userConfiguration)
+	if err != nil {
+		log.Fatalf("headache configuration error, cannot parse\n\t%v\n", err)
+	}
+	return configFile, configuration
 }

@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package core
+package core_test
 
 import (
+	"github.com/fbiville/headache/core"
 	"github.com/fbiville/headache/fs"
 	"github.com/fbiville/headache/fs_mocks"
 	"github.com/fbiville/headache/vcs"
@@ -27,11 +28,13 @@ import (
 )
 
 var _ = Describe("Headache", func() {
+
 	var (
 		t          GinkgoTInterface
 		fileReader *fs_mocks.FileReader
 		fileWriter *fs_mocks.FileWriter
 		fileSystem *fs.FileSystem
+		headache   *core.Headache
 		delimiter  string
 	)
 
@@ -40,6 +43,7 @@ var _ = Describe("Headache", func() {
 		fileReader = new(fs_mocks.FileReader)
 		fileWriter = new(fs_mocks.FileWriter)
 		fileSystem = &fs.FileSystem{FileWriter: fileWriter, FileReader: fileReader}
+		headache = &core.Headache{Fs: fileSystem}
 		delimiter = "\n\n"
 	})
 
@@ -64,13 +68,13 @@ var _ = Describe("Headache", func() {
 			[]byte(header+delimiter+fileContents)).Return(nil).Once()
 		fakeFile.On("Close").Return(nil).Once()
 
-		configuration := ChangeSet{
+		configuration := core.ChangeSet{
 			HeaderRegex:    getRegex("some multi-line header", "with some text"),
 			HeaderContents: header,
 			Files:          []vcs.FileChange{{Path: fileName}},
 		}
 
-		Run(&configuration, fileSystem)
+		headache.Run(&configuration)
 	})
 
 	It("updates the header according to the comment style", func() {
@@ -93,13 +97,13 @@ var _ = Describe("Headache", func() {
 			[]byte(newHeader+delimiter+commentlessContents)).Return(nil).Once()
 		fakeFile.On("Close").Return(nil).Once()
 
-		configuration := ChangeSet{
+		configuration := core.ChangeSet{
 			HeaderRegex:    getRegex("some multi-line header", "with some text"),
 			HeaderContents: newHeader,
 			Files:          []vcs.FileChange{{Path: fileName}},
 		}
 
-		Run(&configuration, fileSystem)
+		headache.Run(&configuration)
 	})
 
 	It("updates the header according to the header parameters", func() {
@@ -119,13 +123,13 @@ var _ = Describe("Headache", func() {
 			[]byte(newHeader+delimiter+commentlessContents)).Return(nil).Once()
 		fakeFile.On("Close").Return(nil).Once()
 
-		configuration := ChangeSet{
+		configuration := core.ChangeSet{
 			HeaderRegex:    getRegexWithParams(map[string]string{"Company": "Soloing Inc."}, "some multi-line header", "with some text from {{.Company}}"),
 			HeaderContents: newHeader,
 			Files:          []vcs.FileChange{{Path: fileName}},
 		}
 
-		Run(&configuration, fileSystem)
+		headache.Run(&configuration)
 	})
 
 	It("automatically inserts the year", func() {
@@ -144,13 +148,13 @@ var _ = Describe("Headache", func() {
 			[]byte(header+delimiter+fileContents)).Return(nil).Once()
 		fakeFile.On("Close").Return(nil).Once()
 
-		configuration := ChangeSet{
+		configuration := core.ChangeSet{
 			HeaderRegex:    getRegex("some multi-line header from {{.Year}}", "with some text"),
 			HeaderContents: header,
 			Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2022}},
 		}
 
-		Run(&configuration, fileSystem)
+		headache.Run(&configuration)
 	})
 
 	It("automatically inserts the year interval", func() {
@@ -169,13 +173,13 @@ var _ = Describe("Headache", func() {
 			[]byte(header+delimiter+fileContents)).Return(nil).Once()
 		fakeFile.On("Close").Return(nil).Once()
 
-		configuration := ChangeSet{
+		configuration := core.ChangeSet{
 			HeaderRegex:    getRegex("some multi-line header from {{.Year}}", "with some text"),
 			HeaderContents: header,
 			Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2022, LastEditionYear: 2034}},
 		}
 
-		Run(&configuration, fileSystem)
+		headache.Run(&configuration)
 	})
 
 	It("automatically prevents the end year insertion if it's the same as the start year", func() {
@@ -194,13 +198,13 @@ var _ = Describe("Headache", func() {
 			[]byte(header+delimiter+fileContents)).Return(nil).Once()
 		fakeFile.On("Close").Return(nil).Once()
 
-		configuration := ChangeSet{
+		configuration := core.ChangeSet{
 			HeaderRegex:    getRegex("some multi-line header from {{.Year}}", "with some text"),
 			HeaderContents: header,
 			Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2022, LastEditionYear: 2022}},
 		}
 
-		Run(&configuration, fileSystem)
+		headache.Run(&configuration)
 	})
 
 	It("automatically inserts the start year only", func() {
@@ -219,13 +223,13 @@ var _ = Describe("Headache", func() {
 			[]byte(header+delimiter+fileContents)).Return(nil).Once()
 		fakeFile.On("Close").Return(nil).Once()
 
-		configuration := ChangeSet{
+		configuration := core.ChangeSet{
 			HeaderRegex:    getRegex("some multi-line header from {{.StartYear}}-present", "with some text"),
 			HeaderContents: header,
 			Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2022, LastEditionYear: 2034}},
 		}
 
-		Run(&configuration, fileSystem)
+		headache.Run(&configuration)
 	})
 
 	It("matches similar header and replaces it", func() {
@@ -248,13 +252,13 @@ var _ = Describe("Headache", func() {
 			[]byte(newHeader+"\n\n"+fileContents)).Return(nil).Once()
 		fakeFile.On("Close").Return(nil).Once()
 
-		configuration := ChangeSet{
+		configuration := core.ChangeSet{
 			HeaderRegex:    getRegexWithParams(map[string]string{"Year": "2022"}, "some header {{.Year}} and stuff"),
 			HeaderContents: newHeader,
 			Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2022, LastEditionYear: 2024}},
 		}
 
-		Run(&configuration, fileSystem)
+		headache.Run(&configuration)
 	})
 
 	It("preserves existing start year when it is lower than the configured one", func() {
@@ -274,7 +278,7 @@ var _ = Describe("Headache", func() {
 			[]byte(newHeader+delimiter+fileContents)).Return(nil).Once()
 		fakeFile.On("Close").Return(nil).Once()
 
-		configuration := ChangeSet{
+		configuration := core.ChangeSet{
 			HeaderRegex: getRegexWithParams(map[string]string{
 				"Year":    "{{.Year}}",
 				"Company": "ACME",
@@ -283,7 +287,7 @@ var _ = Describe("Headache", func() {
 			Files:          []vcs.FileChange{{Path: fileName, CreationYear: 2016, LastEditionYear: 2022}},
 		}
 
-		Run(&configuration, fileSystem)
+		headache.Run(&configuration)
 	})
 
 	It("replaces single future copyright header date with single commit year", func() {
@@ -308,7 +312,7 @@ var _ = Describe("Headache", func() {
  * limitations under the License.
  */`
 
-		startYear, endYear, err := computeCopyrightYears(&change, header)
+		startYear, endYear, err := core.ComputeCopyrightYears(&change, header)
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(startYear).To(Equal(2018))
@@ -321,7 +325,7 @@ func getRegex(headerLines ...string) *regexp.Regexp {
 }
 
 func getRegexWithParams(params map[string]string, headerLines ...string) *regexp.Regexp {
-	regex, err := ComputeDetectionRegex(headerLines, params)
+	regex, err := core.ComputeDetectionRegex(headerLines, params)
 	if err != nil {
 		panic(err)
 	}
