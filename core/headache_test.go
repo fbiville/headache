@@ -325,7 +325,7 @@ func getRegex(headerLines ...string) *regexp.Regexp {
 }
 
 func getRegexWithParams(params map[string]string, headerLines ...string) *regexp.Regexp {
-	regex, err := core.ComputeDetectionRegex(headerLines, params)
+	regex, err := core.ComputeHeaderDetectionRegex(headerLines, params)
 	if err != nil {
 		panic(err)
 	}

@@ -29,7 +29,7 @@ type ParsedTemplate struct { // visible for testing
 
 func ParseTemplate(versionedHeader *VersionedHeaderTemplate, style CommentStyle) (*ParsedTemplate, error) {
 	currentData := injectReservedYearParameter(versionedHeader.Current.Data)
-	commentedLines, err := applyComments(versionedHeader.Current.Lines, style)
+	commentedLines, err := ApplyComments(versionedHeader.Current.Lines, style)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func ParseTemplate(versionedHeader *VersionedHeaderTemplate, style CommentStyle)
 	}
 
 	previousData := injectReservedYearParameter(versionedHeader.Previous.Data)
-	regex, err := ComputeDetectionRegex(versionedHeader.Previous.Lines, previousData)
+	regex, err := ComputeHeaderDetectionRegex(versionedHeader.Previous.Lines, previousData)
 	if err != nil {
 		return nil, err
 	}
@@ -62,26 +62,4 @@ func injectReservedYearParameter(currentData map[string]string) map[string]strin
 	currentData["StartYear"] = "{{.StartYear}}"
 	currentData["EndYear"] = "{{.EndYear}}"
 	return currentData
-}
-
-func applyComments(lines []string, style CommentStyle) ([]string, error) {
-	result := make([]string, 0)
-	if openingLine := style.GetOpeningString(); openingLine != "" {
-		result = append(result, openingLine)
-	}
-	for _, line := range lines {
-		result = append(result, prependLine(style, line))
-	}
-	if closingLine := style.GetClosingString(); closingLine != "" {
-		result = append(result, closingLine)
-	}
-	return result, nil
-}
-
-func prependLine(style CommentStyle, line string) string {
-	comment := style.GetString()
-	if line == "" {
-		return strings.TrimRight(comment, " ")
-	}
-	return comment + line
 }

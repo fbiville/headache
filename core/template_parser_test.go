@@ -2,6 +2,7 @@ package core_test
 
 import (
 	"github.com/fbiville/headache/core"
+	styles "github.com/fbiville/headache/core/comment_styles"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -36,7 +37,7 @@ var _ = Describe("Template parser", func() {
 			Revision: "",
 		}
 
-		result, err := core.ParseTemplate(versionedTemplate, core.Hash{})
+		result, err := core.ParseTemplate(versionedTemplate, styles.Hash{})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.ActualContent).To(Equal("# Copyright (c) {{.StartYear}} -- {{.EndYear}} Florent"))
@@ -49,7 +50,7 @@ var _ = Describe("Template parser", func() {
 			Revision: "",
 		}
 
-		result, err := core.ParseTemplate(versionedTemplate, core.Hash{})
+		result, err := core.ParseTemplate(versionedTemplate, styles.Hash{})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.ActualContent).To(Equal("# Copyright (c) {{.YearRange}} Florent"))
@@ -62,7 +63,7 @@ var _ = Describe("Template parser", func() {
 			Revision: "",
 		}
 
-		result, err := core.ParseTemplate(versionedTemplate, core.Hash{})
+		result, err := core.ParseTemplate(versionedTemplate, styles.Hash{})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.ActualContent).To(Equal("# Copyright (c) {{.YearRange}} Florent"))
@@ -70,12 +71,12 @@ var _ = Describe("Template parser", func() {
 
 	It("computes a regex that detect headers with newline differences", func() {
 		versionedTemplate := &core.VersionedHeaderTemplate{
-			Previous: &core.HeaderTemplate{Lines:[]string{"hello", "world"}, Data: map[string]string{}},
-			Current:  &core.HeaderTemplate{Lines:[]string{"hello", "world"}, Data: map[string]string{}},
+			Previous: &core.HeaderTemplate{Lines: []string{"hello", "world"}, Data: map[string]string{}},
+			Current:  &core.HeaderTemplate{Lines: []string{"hello", "world"}, Data: map[string]string{}},
 			Revision: "",
 		}
 
-		result, err := core.ParseTemplate(versionedTemplate, core.SlashSlash{})
+		result, err := core.ParseTemplate(versionedTemplate, styles.SlashSlash{})
 
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.ActualContent).To(Equal("// hello\n// world"))
