@@ -96,7 +96,7 @@ func (resolver *ConfigurationResolver) getAffectedFiles(config *Configuration, v
 		if versionedTemplate.Revision == "" {
 			log.Print("Unable to get last execution revision, triggering a full scan")
 		} else {
-			log.Printf("Configuration changed since last execution (%s), triggering a full scan", versionedTemplate.Revision)
+			log.Printf("Configuration and/or license header template changed since last execution (%s), triggering a full scan", versionedTemplate.Revision)
 		}
 		changes, err = resolver.PathMatcher.ScanAllFiles(config.Includes, config.Excludes, fileSystem)
 		if err != nil {
