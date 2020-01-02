@@ -17,19 +17,21 @@
 package core_test
 
 import (
+	"encoding/json"
 	. "github.com/fbiville/headache/internal/pkg/core"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
+	"io/ioutil"
 	"sort"
 )
 
 var _ = Describe("Comment styles", func() {
 
-	It("includes the following", func() {
-		styles := SupportedStyleCatalog()
+	It("include only the following", func() {
+		catalog := namesOf(SupportedStyleCatalog())
 
-		Expect(namesOf(styles)).To(Equal([]string{
+		Expect(catalog).To(Equal([]string{
 			"DashDash",
 			"Hash",
 			"REM",
@@ -38,6 +40,8 @@ var _ = Describe("Comment styles", func() {
 			"SlashStar",
 			"SlashStarStar",
 		}))
+		Expect(catalog).To(Equal(SortedStylesInSchema("../../../docs/schema.json")),
+			"Expected all declared styles to be included in JSON schema")
 	})
 
 	DescribeTable("are properly defined",
@@ -67,6 +71,32 @@ func namesOf(styles map[string]CommentStyle) []string {
 		result[i] = style.GetName()
 		i++
 	}
+	sort.Strings(result)
+	return result
+}
+
+func SortedStylesInSchema(schemaFileLocation string) []string {
+	bytes, err := ioutil.ReadFile(schemaFileLocation)
+	Expect(err).NotTo(HaveOccurred())
+	var schema HeadacheSchema
+	err = json.Unmarshal(bytes, &schema)
+	return schema.SortedStyleNames()
+}
+
+type HeadacheSchema struct {
+	Properties HeadacheProperties `json:"properties"`
+}
+
+type HeadacheProperties struct {
+	Style CommentStyleProperty `json:"style"`
+}
+
+type CommentStyleProperty struct {
+	Names []string `json:"enum"`
+}
+
+func (schema *HeadacheSchema) SortedStyleNames() []string {
+	result := schema.Properties.Style.Names
 	sort.Strings(result)
 	return result
 }
