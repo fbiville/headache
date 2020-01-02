@@ -44,7 +44,7 @@ limitations under the License.
 
 All you have to do then is:
 ```shell
- $ go get -u github.com/fbiville/headache
+ $ cd $(mktemp -d) && go get -u github.com/fbiville/headache/cmd/headache && cd -
  $ $(GOBIN)/headache
 ```
 
