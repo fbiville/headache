@@ -24,7 +24,8 @@ import (
 )
 
 type ConfigurationLoader struct {
-	Reader fs.FileReader
+	Reader         fs.FileReader
+	SchemaLocation string
 }
 
 func (cl *ConfigurationLoader) ReadConfiguration(configFile *string) (*Configuration, error) {
@@ -55,7 +56,7 @@ func (cl *ConfigurationLoader) UnmarshalConfiguration(configurationPayload []byt
 }
 
 func (cl *ConfigurationLoader) validateConfiguration(configFile *string) error {
-	schema := loadSchema()
+	schema := loadSchema(cl.SchemaLocation)
 	if schema == nil {
 		return nil
 	}
@@ -66,8 +67,8 @@ func (cl *ConfigurationLoader) validateConfiguration(configFile *string) error {
 	return jsonSchemaValidator.Validate("file://" + *configFile)
 }
 
-func loadSchema() *jsonsch.Schema {
-	schema, err := jsonsch.NewSchema(jsonsch.NewReferenceLoader("https://fbiville.github.io/headache/schema.json"))
+func loadSchema(schemaLocation string) *jsonsch.Schema {
+	schema, err := jsonsch.NewSchema(jsonsch.NewReferenceLoader(schemaLocation))
 	if err != nil {
 		log.Printf("headache configuration warning: cannot load schema, skipping configuration validation. See reason below:\n\t%v\n", err)
 		return nil

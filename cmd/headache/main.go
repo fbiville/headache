@@ -30,7 +30,8 @@ func main() {
 	environment := DefaultEnvironment()
 	fileSystem := environment.FileSystem
 	configLoader := &ConfigurationLoader{
-		Reader: fileSystem.FileReader,
+		Reader:         fileSystem.FileReader,
+		SchemaLocation: environment.SchemaLocation,
 	}
 	executionTracker := &ExecutionVcsTracker{
 		Versioning:   environment.VersioningClient.GetClient(),

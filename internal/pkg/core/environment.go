@@ -11,8 +11,9 @@ func DefaultEnvironment() *Environment {
 		VersioningClient: &vcs.Client{
 			Vcs: &vcs.Git{},
 		},
-		FileSystem: fs.DefaultFileSystem(),
-		Clock:      helper.SystemClock{},
+		FileSystem:     fs.DefaultFileSystem(),
+		Clock:          helper.SystemClock{},
+		SchemaLocation: "https://fbiville.github.io/headache/schema.json",
 	}
 }
 
@@ -20,4 +21,5 @@ type Environment struct {
 	VersioningClient vcs.VersioningClient
 	FileSystem       *fs.FileSystem
 	Clock            helper.Clock
+	SchemaLocation   string
 }
