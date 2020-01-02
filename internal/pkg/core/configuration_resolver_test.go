@@ -44,7 +44,7 @@ var _ = Describe("Configuration parser", func() {
 		includes              []string
 		excludes              []string
 		resultingChanges      []FileChange
-		systemConfiguration   *core.SystemConfiguration
+		systemConfiguration   *core.Environment
 		data                  map[string]string
 		revision              string
 		configurationResolver *core.ConfigurationResolver
@@ -63,7 +63,7 @@ var _ = Describe("Configuration parser", func() {
 		includes = []string{"../fixtures/hello_*.go"}
 		excludes = []string{}
 		resultingChanges = []FileChange{initialChanges[0]}
-		systemConfiguration = &core.SystemConfiguration{
+		systemConfiguration = &core.Environment{
 			FileSystem:       fileSystem,
 			Clock:            clock,
 			VersioningClient: versioningClient,
@@ -73,9 +73,9 @@ var _ = Describe("Configuration parser", func() {
 		}
 		revision = "some-sha"
 		configurationResolver = &core.ConfigurationResolver{
-			SystemConfiguration: systemConfiguration,
-			ExecutionTracker:    tracker,
-			PathMatcher:         pathMatcher,
+			Environment:      systemConfiguration,
+			ExecutionTracker: tracker,
+			PathMatcher:      pathMatcher,
 		}
 	})
 

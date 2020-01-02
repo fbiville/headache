@@ -18,27 +18,10 @@ package core
 
 import (
 	"github.com/fbiville/headache/internal/pkg/fs"
-	"github.com/fbiville/headache/internal/pkg/helper"
 	"github.com/fbiville/headache/internal/pkg/vcs"
 	"log"
 	"regexp"
 )
-
-func DefaultSystemConfiguration() *SystemConfiguration {
-	return &SystemConfiguration{
-		VersioningClient: &vcs.Client{
-			Vcs: &vcs.Git{},
-		},
-		FileSystem: fs.DefaultFileSystem(),
-		Clock:      helper.SystemClock{},
-	}
-}
-
-type SystemConfiguration struct {
-	VersioningClient vcs.VersioningClient
-	FileSystem       *fs.FileSystem
-	Clock            helper.Clock
-}
 
 type Configuration struct {
 	HeaderFile   string            `json:"headerFile"`
@@ -56,9 +39,9 @@ type ChangeSet struct {
 }
 
 type ConfigurationResolver struct {
-	SystemConfiguration *SystemConfiguration
-	ExecutionTracker    ExecutionTracker
-	PathMatcher         fs.PathMatcher
+	Environment      *Environment
+	ExecutionTracker ExecutionTracker
+	PathMatcher      fs.PathMatcher
 }
 
 func (resolver *ConfigurationResolver) ResolveEagerly(currentConfig *Configuration) (*ChangeSet, error) {
@@ -85,8 +68,8 @@ func (resolver *ConfigurationResolver) ResolveEagerly(currentConfig *Configurati
 }
 
 func (resolver *ConfigurationResolver) getAffectedFiles(config *Configuration, versionedTemplate *VersionedHeaderTemplate) ([]vcs.FileChange, error) {
-	versioningClient := resolver.SystemConfiguration.VersioningClient
-	fileSystem := resolver.SystemConfiguration.FileSystem
+	versioningClient := resolver.Environment.VersioningClient
+	fileSystem := resolver.Environment.FileSystem
 	var (
 		changes []vcs.FileChange
 		err     error
@@ -111,5 +94,5 @@ func (resolver *ConfigurationResolver) getAffectedFiles(config *Configuration, v
 		}
 		changes = resolver.PathMatcher.MatchFiles(fileChanges, config.Includes, config.Excludes, fileSystem)
 	}
-	return versioningClient.AddMetadata(changes, resolver.SystemConfiguration.Clock)
+	return versioningClient.AddMetadata(changes, resolver.Environment.Clock)
 }

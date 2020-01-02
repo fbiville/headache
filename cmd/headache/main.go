@@ -27,21 +27,21 @@ func main() {
 	log.Print("Starting...")
 
 	// dependency graph - begin
-	systemConfig := DefaultSystemConfiguration()
-	fileSystem := systemConfig.FileSystem
+	environment := DefaultEnvironment()
+	fileSystem := environment.FileSystem
 	configLoader := &ConfigurationLoader{
 		Reader: fileSystem.FileReader,
 	}
 	executionTracker := &ExecutionVcsTracker{
-		Versioning:   systemConfig.VersioningClient.GetClient(),
+		Versioning:   environment.VersioningClient.GetClient(),
 		FileSystem:   fileSystem,
-		Clock:        systemConfig.Clock,
+		Clock:        environment.Clock,
 		ConfigLoader: configLoader,
 	}
 	configurationResolver := &ConfigurationResolver{
-		SystemConfiguration: systemConfig,
-		ExecutionTracker:    executionTracker,
-		PathMatcher:         &fs.ZglobPathMatcher{},
+		Environment:      environment,
+		ExecutionTracker: executionTracker,
+		PathMatcher:      &fs.ZglobPathMatcher{},
 	}
 	headache := &Headache{Fs: fileSystem}
 	// dependency graph - end
