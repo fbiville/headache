@@ -17,20 +17,20 @@ check-mockery: ## check whether mockery is installed
 	@which mockery > /dev/null || ((echo 'mockery not found, please run: "cd `mktemp -d` && go get -u github.com/vektra/mockery/.../ && cd -"') && false)
 
 gen-mocks: check-mockery ## generate the project mocks
-	GO111MODULE=on mockery -output helper_mocks -outpkg helper_mocks -dir helper -name Clock \
-	GO111MODULE=on mockery -output vcs_mocks -outpkg vcs_mocks -dir vcs -name Vcs \
-	GO111MODULE=on mockery -output vcs_mocks -outpkg vcs_mocks -dir vcs -name VersioningClient \
-	GO111MODULE=on mockery -output fs_mocks -outpkg fs_mocks -dir fs -name FileWriter \
-	GO111MODULE=on mockery -output fs_mocks -outpkg fs_mocks -dir fs -name FileReader \
-	GO111MODULE=on mockery -output fs_mocks -outpkg fs_mocks -dir fs -name File \
-	GO111MODULE=on mockery -output fs_mocks -outpkg fs_mocks -dir fs -name PathMatcher \
-	GO111MODULE=on mockery -output core_mocks -outpkg core_mocks -dir core -name ExecutionTracker
+	GO111MODULE=on mockery -output internal/pkg/helper_mocks -outpkg helper_mocks -dir internal/pkg/helper -name Clock \
+	GO111MODULE=on mockery -output internal/pkg/vcs_mocks -outpkg vcs_mocks -dir internal/pkg/vcs -name Vcs \
+	GO111MODULE=on mockery -output internal/pkg/vcs_mocks -outpkg vcs_mocks -dir internal/pkg/vcs -name VersioningClient \
+	GO111MODULE=on mockery -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name FileWriter \
+	GO111MODULE=on mockery -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name FileReader \
+	GO111MODULE=on mockery -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name File \
+	GO111MODULE=on mockery -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name PathMatcher \
+	GO111MODULE=on mockery -output internal/pkg/core_mocks -outpkg core_mocks -dir internal/pkg/core -name ExecutionTracker
 
 install: build ## copy the binary to GOBIN
 	cp $(OUTPUT) $(GOBIN)
 
 $(OUTPUT): $(GO_SOURCES)
-	GO111MODULE=on go build -gcflags="all=-N -l"
+	GO111MODULE=on go build -gcflags="all=-N -l" ./cmd/headache
 
 clean: ## remove the binary
 	rm -f $(OUTPUT)
