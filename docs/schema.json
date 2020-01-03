@@ -7,19 +7,20 @@
   "properties": {
     "headerFile": {
       "description": "Location of the license file with the contents to insert to source files",
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "style": {
       "description": "Comment style to apply",
       "type": "string",
       "enum": [
-        "SlashStar",
-        "SlashSlash",
-        "Hash",
-        "DashDash",
-        "SemiColon",
-        "REM",
-        "SlashStarStar"
+        "slashstar",
+        "slashslash",
+        "hash",
+        "dashdash",
+        "semicolon",
+        "rem",
+        "slashstarstar"
       ]
     },
     "includes": {

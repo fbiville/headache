@@ -29,9 +29,10 @@ func main() {
 	// dependency graph - begin
 	environment := DefaultEnvironment()
 	fileSystem := environment.FileSystem
-	configLoader := &ConfigurationLoader{
+	configLoader := &ConfigurationFileLoader{
 		Reader:         fileSystem.FileReader,
 		SchemaLocation: environment.SchemaLocation,
+		SchemaLoader:   &JsonSchemaFileLoader{},
 	}
 	executionTracker := &ExecutionVcsTracker{
 		Versioning:   environment.VersioningClient.GetClient(),
@@ -60,11 +61,11 @@ func main() {
 	log.Print("Done!")
 }
 
-func loadConfiguration(configLoader *ConfigurationLoader, configResolver *ConfigurationResolver) (*string, *ChangeSet) {
+func loadConfiguration(configLoader *ConfigurationFileLoader, configResolver *ConfigurationResolver) (*string, *ChangeSet) {
 	configFile := flag.String("configuration", "headache.json", "Path to configuration file")
 	flag.Parse()
 
-	userConfiguration, err := configLoader.ReadConfiguration(configFile)
+	userConfiguration, err := configLoader.ValidateAndLoad(*configFile)
 	if err != nil {
 		log.Fatalf("headache configuration error, cannot load\n\t%v\n", err)
 	}

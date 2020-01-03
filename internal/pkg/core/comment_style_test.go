@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	"io/ioutil"
 	"sort"
+	"strings"
 )
 
 var _ = Describe("Comment styles", func() {
@@ -40,7 +41,7 @@ var _ = Describe("Comment styles", func() {
 			"SlashStar",
 			"SlashStarStar",
 		}))
-		Expect(catalog).To(Equal(SortedStylesInSchema("../../../docs/schema.json")),
+		Expect(lowerAll(catalog)).To(Equal(sortedStylesInSchema("../../../docs/schema.json")),
 			"Expected all declared styles to be included in JSON schema")
 	})
 
@@ -75,7 +76,7 @@ func namesOf(styles map[string]CommentStyle) []string {
 	return result
 }
 
-func SortedStylesInSchema(schemaFileLocation string) []string {
+func sortedStylesInSchema(schemaFileLocation string) []string {
 	bytes, err := ioutil.ReadFile(schemaFileLocation)
 	Expect(err).NotTo(HaveOccurred())
 	var schema HeadacheSchema
@@ -99,4 +100,11 @@ func (schema *HeadacheSchema) SortedStyleNames() []string {
 	result := schema.Properties.Style.Names
 	sort.Strings(result)
 	return result
+}
+
+func lowerAll(catalog []string) []string {
+	for i, value := range catalog {
+		catalog[i] = strings.ToLower(value)
+	}
+	return catalog
 }

@@ -46,9 +46,10 @@ var _ = Describe("The execution tracker", func() {
 		fileReader = new(fs_mocks.FileReader)
 		fileWriter = new(fs_mocks.FileWriter)
 		tracker = core.ExecutionVcsTracker{
-			Versioning: vcs,
-			FileSystem: &FileSystem{FileReader: fileReader, FileWriter: fileWriter},
-			Clock:      &FixedClock{},
+			Versioning:   vcs,
+			FileSystem:   &FileSystem{FileReader: fileReader, FileWriter: fileWriter},
+			Clock:        &FixedClock{},
+			ConfigLoader: &core.ConfigurationFileLoader{Reader: fileReader},
 		}
 	})
 

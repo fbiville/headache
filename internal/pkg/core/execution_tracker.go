@@ -57,7 +57,7 @@ type ExecutionVcsTracker struct {
 	Versioning   vcs.Vcs
 	FileSystem   *fs.FileSystem
 	Clock        helper.Clock
-	ConfigLoader *ConfigurationLoader
+	ConfigLoader ConfigurationLoader
 }
 
 func (evt *ExecutionVcsTracker) RetrieveVersionedTemplate(currentConfiguration *Configuration) (*VersionedHeaderTemplate, error) {
@@ -91,7 +91,7 @@ func (evt *ExecutionVcsTracker) TrackExecution(configurationPath *string) error 
 	if err != nil {
 		return fmt.Errorf("cannot read configuration %v: %w", *configurationPath, err)
 	}
-	configuration, err := evt.ConfigLoader.UnmarshalConfiguration(configurationContents)
+	configuration, err := evt.ConfigLoader.LoadBytes(configurationContents)
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal configuration %v: %w", *configurationPath, err)
 	}
@@ -169,7 +169,7 @@ func (evt *ExecutionVcsTracker) readFormerTemplateByConfiguration(trackerContent
 	if err != nil {
 		return nil, fmt.Errorf("could not decode encoded configuration: %w", err)
 	}
-	previousConfiguration, err := evt.ConfigLoader.UnmarshalConfiguration(configurationContents)
+	previousConfiguration, err := evt.ConfigLoader.LoadBytes(configurationContents)
 	if err != nil {
 		return nil, fmt.Errorf("could not unmarshal decoded configuration: %w", err)
 	}
@@ -214,7 +214,7 @@ func (evt *ExecutionVcsTracker) readFormerTemplateByVersioning(trackerContents s
 	if err != nil {
 		return nil, fmt.Errorf("cannot get configuration content at revision %s: %w", lastExecutionRevision, err)
 	}
-	previousConfiguration, err := evt.ConfigLoader.UnmarshalConfiguration([]byte(previousConfigurationContents))
+	previousConfiguration, err := evt.ConfigLoader.LoadBytes([]byte(previousConfigurationContents))
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshal configuration at revision %s: %w", lastExecutionRevision, err)
 	}

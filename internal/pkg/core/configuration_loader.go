@@ -18,35 +18,60 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/fbiville/headache/internal/pkg/fs"
-	jsonsch "github.com/xeipuuv/gojsonschema"
-	"log"
+	json_schema "github.com/xeipuuv/gojsonschema"
+	"strings"
 )
 
-type ConfigurationLoader struct {
+type ConfigurationLoader interface {
+	ValidateAndLoad(path string) (*Configuration, error)
+	LoadFile(path string) (*Configuration, error)
+	LoadBytes(bytes []byte) (*Configuration, error)
+}
+
+type ConfigurationFileLoader struct {
 	Reader         fs.FileReader
 	SchemaLocation string
+	SchemaLoader   JsonSchemaLoader
 }
 
-func (cl *ConfigurationLoader) ReadConfiguration(configFile *string) (*Configuration, error) {
-	err := cl.validateConfiguration(configFile)
+func (loader *ConfigurationFileLoader) ValidateAndLoad(path string) (*Configuration, error) {
+	schema := loader.SchemaLoader.Load(loader.SchemaLocation)
+	configuration, err := loader.LoadFile(path)
 	if err != nil {
 		return nil, err
 	}
-
-	payload, err := cl.Reader.Read(*configFile)
+	if schema == nil {
+		return configuration, nil
+	}
+	// normalize comment style names
+	configuration.CommentStyle = strings.ToLower(configuration.CommentStyle)
+	configurationPayload, err := json.Marshal(configuration)
 	if err != nil {
 		return nil, err
 	}
-	configuration, err := cl.UnmarshalConfiguration(payload)
+	result, err := schema.Validate(json_schema.NewBytesLoader(configurationPayload))
 	if err != nil {
 		return nil, err
 	}
-	configuration.Path = configFile
-	return configuration, err
+	errors := result.Errors()
+	if len(errors) > 0 {
+		return nil, fmt.Errorf(report(errors))
+	}
+	configuration.Path = &path
+	return configuration, nil
 }
 
-func (cl *ConfigurationLoader) UnmarshalConfiguration(configurationPayload []byte) (*Configuration, error) {
+func (loader *ConfigurationFileLoader) LoadFile(path string) (*Configuration, error) {
+	configurationPayload, err := loader.Reader.Read(path)
+	if err != nil {
+		return nil, err
+	}
+	return loader.LoadBytes(configurationPayload)
+}
+
+func (loader *ConfigurationFileLoader) LoadBytes(configurationPayload []byte) (*Configuration, error) {
 	result := Configuration{}
 	err := json.Unmarshal(configurationPayload, &result)
 	if err != nil {
@@ -55,23 +80,23 @@ func (cl *ConfigurationLoader) UnmarshalConfiguration(configurationPayload []byt
 	return &result, nil
 }
 
-func (cl *ConfigurationLoader) validateConfiguration(configFile *string) error {
-	schema := loadSchema(cl.SchemaLocation)
-	if schema == nil {
-		return nil
+func report(errors []json_schema.ResultError) string {
+	builder := strings.Builder{}
+	for _, validationError := range errors {
+		details := validationError.Details()
+		field := details["field"]
+		builder.WriteString(fmt.Sprintf("Error with field '%s': %s", field, description(field, validationError)))
+		builder.WriteString("\n")
 	}
-	jsonSchemaValidator := JsonSchemaValidator{
-		Schema:     schema,
-		FileReader: cl.Reader,
-	}
-	return jsonSchemaValidator.Validate("file://" + *configFile)
+	result := builder.String()
+	return result[:len(result)-1]
 }
 
-func loadSchema(schemaLocation string) *jsonsch.Schema {
-	schema, err := jsonsch.NewSchema(jsonsch.NewReferenceLoader(schemaLocation))
-	if err != nil {
-		log.Printf("headache configuration warning: cannot load schema, skipping configuration validation. See reason below:\n\t%v\n", err)
-		return nil
+func description(field interface{}, validationError json_schema.ResultError) string {
+	for _, name := range []string{"Year", "YearRange", "StartYear", "EndYear"} {
+		if field == fmt.Sprintf("data.%s", name) {
+			return fmt.Sprintf("%s is a reserved data parameter and cannot be used", name)
+		}
 	}
-	return schema
+	return validationError.Description()
 }

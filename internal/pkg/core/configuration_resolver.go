@@ -27,8 +27,8 @@ type Configuration struct {
 	HeaderFile   string            `json:"headerFile"`
 	CommentStyle string            `json:"style"`
 	Includes     []string          `json:"includes"`
-	Excludes     []string          `json:"excludes"`
-	TemplateData map[string]string `json:"data"`
+	Excludes     []string          `json:"excludes,omitempty"`
+	TemplateData map[string]string `json:"data,omitempty"`
 	Path         *string
 }
 
