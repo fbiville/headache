@@ -38,7 +38,7 @@ var _ = Describe("Header detector", func() {
 				map[string]string{})
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{0, 43}))
+			Expect(matchLeftMostPositions(regex, file)).To(Equal([]int{0, 43}))
 		})
 	})
 
@@ -55,7 +55,7 @@ world`
 				map[string]string{})
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{0, 44}))
+			Expect(matchLeftMostPositions(regex, file)).To(Equal([]int{0, 44}))
 		})
 	})
 
@@ -74,7 +74,7 @@ world`
 				map[string]string{})
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{0, 87}))
+			Expect(matchLeftMostPositions(regex, file)).To(Equal([]int{0, 87}))
 		})
 	})
 
@@ -95,7 +95,7 @@ world`
 				map[string]string{})
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{0, 50}))
+			Expect(matchLeftMostPositions(regex, file)).To(Equal([]int{0, 50}))
 		})
 	})
 
@@ -118,7 +118,7 @@ world`
 				map[string]string{})
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{0, 87}))
+			Expect(matchLeftMostPositions(regex, file)).To(Equal([]int{0, 87}))
 		})
 	})
 
@@ -136,7 +136,7 @@ world`
 				map[string]string{})
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{0, 51}))
+			Expect(matchLeftMostPositions(regex, file)).To(Equal([]int{0, 51}))
 		})
 	})
 
@@ -154,7 +154,28 @@ world`
 				map[string]string{})
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{0, 44}))
+			Expect(matchLeftMostPositions(regex, file)).To(Equal([]int{0, 44}))
+		})
+	})
+
+	Context("with whitespaces variations with comment style symbols including whitespaces", func() {
+
+
+		const file = `/* 
+ * 
+*some multi-line header
+ *with some text
+*/
+hello
+world`
+
+		It("should detect it", func() {
+			regex, err := core.ComputeHeaderDetectionRegex(
+				[]string{"some multi-line header", "with some text"},
+				map[string]string{})
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(matchLeftMostPositions(regex, file)).To(Equal([]int{0, 51}))
 		})
 	})
 
@@ -204,7 +225,7 @@ func main() {
 		It("matches the header opening comment line", func() {
 			regex := fmt.Sprintf("%s%s", core.Flags(), core.OpeningLine(styles))
 
-			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{0, 3}))
+			Expect(matchLeftMostPositions(regex, file)).To(Equal([]int{0, 3}))
 		})
 
 		It("matches the header intermediate comment line", func() {
@@ -212,7 +233,7 @@ func main() {
 				"    http://www.apache.org/licenses/LICENSE-2.0",
 				styles))
 
-			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{233, 283}))
+			Expect(matchLeftMostPositions(regex, file)).To(Equal([]int{233, 283}))
 		})
 
 		It("computes a regex to match existing header", func() {
@@ -225,11 +246,11 @@ func main() {
 			regex, err := core.ComputeHeaderDetectionRegex(templateLines, templateParameters)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{0, 610}))
+			Expect(matchLeftMostPositions(regex, file)).To(Equal([]int{0, 610}))
 		})
 	})
 })
 
-func MatchLeftMostPositions(regex, contents string) []int {
+func matchLeftMostPositions(regex, contents string) []int {
 	return regexp.MustCompile(regex).FindStringIndex(contents)
 }

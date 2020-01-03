@@ -118,11 +118,8 @@ func combineRegexes(styles []CommentStyle, getLine func(CommentStyle) string) st
 		commentSymbol := getLine(style)
 		if line := commentSymbol; line != "" {
 			regex := escape(line)
-			if strings.HasSuffix(commentSymbol, " ") {
-				// right spaces may be formatted away
-				// make the right space optional
-				regex += "?"
-			}
+			// spaces may be formatted away - make the space optional
+			regex = strings.Replace(regex, " ", " ?", -1)
 			regexes = append(regexes, regex)
 		}
 	}
