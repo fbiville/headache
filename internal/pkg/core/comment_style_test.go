@@ -29,22 +29,6 @@ import (
 
 var _ = Describe("Comment styles", func() {
 
-	It("include only the following", func() {
-		catalog := namesOf(SupportedStyleCatalog())
-
-		Expect(catalog).To(Equal([]string{
-			"DashDash",
-			"Hash",
-			"REM",
-			"SemiColon",
-			"SlashSlash",
-			"SlashStar",
-			"SlashStarStar",
-		}))
-		Expect(lowerAll(catalog)).To(Equal(sortedStylesInSchema("../../../docs/schema.json")),
-			"Expected all declared styles to be included in JSON schema")
-	})
-
 	DescribeTable("are properly defined",
 		func(name, openingStr, closingStr, str string) {
 			style := ParseCommentStyle(name)
@@ -62,6 +46,28 @@ var _ = Describe("Comment styles", func() {
 		Entry("matches REM comment style", "REM", "", "", "REM "),
 		Entry("matches SlashStarStar comment style", "SlashStarStar", "/**", " */", " * "),
 	)
+
+	It("include only the following", func() {
+		catalog := namesOf(SupportedStyleCatalog())
+
+		Expect(catalog).To(Equal([]string{
+			"DashDash",
+			"Hash",
+			"REM",
+			"SemiColon",
+			"SlashSlash",
+			"SlashStar",
+			"SlashStarStar",
+		}))
+		Expect(lowerAll(catalog)).To(Equal(sortedStylesInSchema("../../../docs/schema.json")),
+			"Expected all declared styles to be included in JSON schema")
+	})
+
+	It("are parsed case-insensitively", func() {
+		style := ParseCommentStyle("slashslash")
+
+		Expect(style.GetName()).To(Equal("SlashSlash"))
+	})
 })
 
 func namesOf(styles map[string]CommentStyle) []string {
