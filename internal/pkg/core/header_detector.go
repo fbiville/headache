@@ -60,10 +60,45 @@ func OpeningLine(styles []CommentStyle) string {
 
 // visible for testing
 func MatchingLine(line string, styles []CommentStyle) string {
-	middleLine := fmt.Sprintf(`[\t\v\f\r ]*%s?[\t\v\f\r ]*\Q%s\E[,.;:?!\t\v\f\r ]*\n?`, combineRegexes(styles, func(style CommentStyle) string { return style.GetString() }), line)
+	openingStyleSymbolRegex := combineRegexes(styles, func(style CommentStyle) string { return style.GetString() })
+	normalizedLine := normalizePunctuation(line)
+	middleLine := fmt.Sprintf(`[\t\v\f\r ]*%s?[\t\v\f\r ]*\Q%s\E[,.;:?!\t\v\f\r ]*\n?`, openingStyleSymbolRegex, normalizedLine)
 	builder := strings.Builder{}
 	builder.WriteString(middleLine)
 	return builder.String()
+}
+
+func normalizePunctuation(line string) string {
+	ignore := `\E.?\Q`
+	normalizedLine := ""
+	// we could use a(n only) slightly better heuristic with a regex matching all dots
+	// not prefixed by a digit or a couple of { and 0-n spaces
+	// but no support for negative lookbehind in Golang regex engine so here we go :(
+	for k, v := range line {
+		if v == ',' || v == ';' || v == ':' || v == '?' || v == '!' {
+			normalizedLine += ignore
+		} else if v == '.' && (k == len(line)-1 || line[k:k+2] == ". ") {
+			// dots in template expressions must and in numerical expressions should be preserved
+			// hence the poor heuristic of the following space or dot as last line's character
+			normalizedLine += ignore
+		} else {
+			normalizedLine += string(v)
+		}
+	}
+	result := strings.NewReplacer(
+		`\t\t`, `\t`,
+		`\v\v`, `\v`,
+		`\f\f`, `\f`,
+		`\r\r`, `\r`,
+		"  ", " ",
+	).Replace(normalizedLine)
+	return strings.NewReplacer(
+		"\t", `\E\t+\Q`,
+		"\v", `\E\v+\Q`,
+		"\f", `\E\f+\Q`,
+		"\r", `\E\r+\Q`,
+		" ", `\E +\Q`,
+	).Replace(result)
 }
 
 // visible for testing

@@ -122,7 +122,7 @@ world`
 		})
 	})
 
-	Context("with punctuation and whitespace variations", func() {
+	Context("with punctuation and whitespace variations in the source file", func() {
 
 
 		const file = `// some multi-line header.!:
@@ -137,6 +137,24 @@ world`
 
 			Expect(err).NotTo(HaveOccurred())
 			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{0, 51}))
+		})
+	})
+
+	Context("with punctuation and whitespace variations in the license header template", func() {
+
+
+		const file = `// some multi-line header
+// with some text
+hello
+world`
+
+		It("should detect it", func() {
+			regex, err := core.ComputeHeaderDetectionRegex(
+				[]string{"some. multi-line.  header!", "with  some text?"},
+				map[string]string{})
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(MatchLeftMostPositions(regex, file)).To(Equal([]int{0, 44}))
 		})
 	})
 
