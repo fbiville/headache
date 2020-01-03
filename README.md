@@ -1,7 +1,7 @@
 # Header management
 
-`headache` manages license headers.
-It is biased towards Golang but should work on any other language (provided a compatible code comment style is implemented).
+`headache` is an opinionated license header updater (see the "Approach" section below).
+It allows to consistently insert and update license headers in source files or even change licenses completely!
 
 ## Build status
 
@@ -45,7 +45,7 @@ limitations under the License.
 All you have to do then is:
 ```shell
  $ cd $(mktemp -d) && go get -u github.com/fbiville/headache/cmd/headache && cd -
- $ $(GOBIN)/headache
+ $ ${GOBIN:-`go env GOPATH`/bin}/headache
 ```
 
 As a result, source files will be changed and `.headache-run` will be generated to keep track of `headache` last execution.
@@ -56,7 +56,7 @@ This file must be versioned along with the source file changes.
 Alternatively, the configuration file can be explicitly provided:
 ```shell
  $ go get -u github.com/fbiville/headache
- $ $(GOBIN)/headache --configuration /path/to/configuration.json
+ $ ${GOBIN:-`go env GOPATH`/bin}/headache --configuration /path/to/configuration.json
 ```
 
 ## Reference documentation
@@ -93,7 +93,7 @@ In layman's terms, here are all the possible settings:
 Setting            | Type                    | Definition                                             |
 | ---------------- |:----------------------: | -----------------------------------------------------: |
 | `headerFile`     | string                  | **[required]** Path to the parameterized license header. Parameters are referenced with the following syntax: {{.PARAMETER-NAME}}               |
-| `style`          | string                  | **[required]** See all the possible names [here](https://fbiville.github.io/headache/schema.json) |
+| `style`          | string                  | **[required]** See all the possible names [here](https://fbiville.github.io/headache/schema.json). The lookup is case-insensitive. |
 | `includes`       | array of strings        | **[required, min size=1]** File globs to include (`*` and `**` are supported)     |
 | `excludes`       | array of strings        | File globs to exclude (`*` and `**` are supported)     |
 | `data`           | map of string to string | Key-value pairs, matching the parameters used in `headerFile` except for the reserved parameters (see below section).
@@ -103,12 +103,12 @@ Setting            | Type                    | Definition                       
 
  - `{{.YearRange}}` (formerly `{{.Year}}`) is automatically substituted with either:
      - a single year if both years in the range are the same
-     - a year range with the earliest commit's year* and latest commit's year
- - `{{.StartYear}}` is substituted with the earliest commit's year
+     - a year range with the earliest commit's year (or earlier) and latest commit's year
+ - `{{.StartYear}}` is substituted with the earliest commit's year (or earlier)
  - `{{.EndYear}}` is substituted with the latest commit's year
  
 As explained earlier, if a file specifies a start date in its header that is earlier than any commit's year, then that
 date is preserved.
 
-If you want to avoid copyright dates like `2019-2019`, then rely on `{{.YearRange}}`.
+If you want to avoid copyright dates like `2019-2019`, then rely on `{{.YearRange}}` instead of `{{.StartYear}}-{{.EndYear}}`.
 If you need something like `2018-present`, then use `{{.StartYear}}-present` instead.
