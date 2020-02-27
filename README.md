@@ -112,3 +112,7 @@ date is preserved.
 
 If you want to avoid copyright dates like `2019-2019`, then rely on `{{.YearRange}}` instead of `{{.StartYear}}-{{.EndYear}}`.
 If you need something like `2018-present`, then use `{{.StartYear}}-present` instead.
+
+## Alternatives
+
+ - [addlicense](https://github.com/google/addlicense) - written in Golang as well
