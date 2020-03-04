@@ -48,7 +48,10 @@ func main() {
 	headache := &Headache{Fs: fileSystem}
 	// dependency graph - end
 
-	configFile, configuration := loadConfiguration(configLoader, configurationResolver)
+	configFile := flag.String("configuration", "headache.json", "Path to configuration file")
+	flag.Parse()
+
+	configuration := loadConfiguration(configFile, configLoader, configurationResolver)
 	if len(configuration.Files) > 0 {
 		headache.Run(configuration)
 		if err := executionTracker.TrackExecution(configFile); err != nil {
@@ -61,10 +64,7 @@ func main() {
 	log.Print("Done!")
 }
 
-func loadConfiguration(configLoader *ConfigurationFileLoader, configResolver *ConfigurationResolver) (*string, *ChangeSet) {
-	configFile := flag.String("configuration", "headache.json", "Path to configuration file")
-	flag.Parse()
-
+func loadConfiguration(configFile *string, configLoader *ConfigurationFileLoader, configResolver *ConfigurationResolver) *ChangeSet {
 	userConfiguration, err := configLoader.ValidateAndLoad(*configFile)
 	if err != nil {
 		log.Fatalf("headache configuration error, cannot load\n\t%v\n", err)
@@ -73,5 +73,5 @@ func loadConfiguration(configLoader *ConfigurationFileLoader, configResolver *Co
 	if err != nil {
 		log.Fatalf("headache configuration error, cannot parse\n\t%v\n", err)
 	}
-	return configFile, configuration
+	return configuration
 }
