@@ -43,7 +43,7 @@ var _ = Describe("String slices", func() {
 		Expect(SliceEqual([]string{"a", "c"}, []string{"c", "a"})).To(BeFalse())
 	})
 
-	It("prepends strings to it", func() {
+	It("prepends diff to it", func() {
 		f := func(head string, tail []string) bool {
 			result := PrependString(head, tail)
 			return len(result) == 1+len(tail) && result[0] == head && SliceEqual(result[1:], tail)

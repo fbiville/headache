@@ -18,6 +18,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/fbiville/headache/internal/pkg/diff"
 	"github.com/fbiville/headache/internal/pkg/fs"
 	"github.com/fbiville/headache/internal/pkg/vcs"
 	tpl "html/template"
@@ -32,6 +33,18 @@ type Headache struct {
 	Fs *fs.FileSystem
 }
 
+func (headache *Headache) DryRun(config *ChangeSet) string {
+	result := strings.Builder{}
+	currentHeaderDetectionRegex := config.HeaderRegex
+	newHeaderTemplate := config.HeaderContents
+	for _, file := range config.Files {
+		currentContent, newContent := headache.computeChange(file, currentHeaderDetectionRegex, newHeaderTemplate)
+		result.WriteString(fmt.Sprintf("### %s\n", file.Path))
+		result.WriteString(diff.Diff(string(currentContent), string(newContent)))
+	}
+	return result.String()
+}
+
 func (headache *Headache) Run(config *ChangeSet) {
 	currentHeaderDetectionRegex := config.HeaderRegex
 	newHeaderTemplate := config.HeaderContents
@@ -41,13 +54,18 @@ func (headache *Headache) Run(config *ChangeSet) {
 }
 
 func (headache *Headache) UpdateFile(change vcs.FileChange, currentHeaderDetectionRegex *regexp.Regexp, newHeaderTemplate string) {
+	_, newContent := headache.computeChange(change, currentHeaderDetectionRegex, newHeaderTemplate)
+	headache.writeToFile(change.Path, newContent)
+}
+
+func (headache *Headache) computeChange(change vcs.FileChange, currentHeaderDetectionRegex *regexp.Regexp, newHeaderTemplate string) ([]byte, []byte) {
 	path := change.Path
-	bytes, err := headache.Fs.FileReader.Read(path)
+	currentContent, err := headache.Fs.FileReader.Read(path)
 	if err != nil {
 		log.Fatalf("headache execution error, cannot read file %s\n\t%v", path, err)
 	}
 
-	fileContents := string(bytes)
+	fileContents := string(currentContent)
 	matchLocation := currentHeaderDetectionRegex.FindStringIndex(fileContents)
 	existingHeader := ""
 	if matchLocation != nil {
@@ -59,8 +77,7 @@ func (headache *Headache) UpdateFile(change vcs.FileChange, currentHeaderDetecti
 	if err != nil {
 		log.Fatalf("headache execution error, cannot parse header for file %s\n\t%v", path, err)
 	}
-	newContents := append([]byte(fmt.Sprintf("%s%s", finalHeaderContent, "\n\n")), []byte(fileContents)...)
-	headache.writeToFile(path, newContents)
+	return currentContent, append([]byte(fmt.Sprintf("%s%s", finalHeaderContent, "\n\n")), []byte(fileContents)...)
 }
 
 func insertYears(template string, change *vcs.FileChange, existingHeader string) (string, error) {

@@ -3,10 +3,11 @@ module github.com/fbiville/headache
 go 1.12
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
 	github.com/mattn/go-zglob v0.0.1
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.9.0
+	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
 	github.com/stretchr/testify v1.5.1
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect

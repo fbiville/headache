@@ -18,9 +18,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	. "github.com/fbiville/headache/internal/pkg/core"
 	"github.com/fbiville/headache/internal/pkg/fs"
 	"log"
+	"os"
 )
 
 func main() {
@@ -48,20 +50,38 @@ func main() {
 	headache := &Headache{Fs: fileSystem}
 	// dependency graph - end
 
+	execute(headache, configLoader, configurationResolver, executionTracker)
+}
+
+func execute(headache *Headache, configLoader *ConfigurationFileLoader, configurationResolver *ConfigurationResolver, executionTracker *ExecutionVcsTracker) {
 	configFile := flag.String("configuration", "headache.json", "Path to configuration file")
+	checkMode := flag.Bool("check", false, "Checks if headers are up-to-date")
 	flag.Parse()
 
+	exitCode := 0
 	configuration := loadConfiguration(configFile, configLoader, configurationResolver)
 	if len(configuration.Files) > 0 {
-		headache.Run(configuration)
-		if err := executionTracker.TrackExecution(configFile); err != nil {
-			log.Printf("headache warning, could not save current execution, see below for details\n\t%v\n", err)
+		if *checkMode {
+			if diff := headache.DryRun(configuration); diff != "" {
+				_, _ = fmt.Fprintf(os.Stderr, "Headers are not up-to-date! See details in file: TODO")
+				// TODO: write in tmp file
+				_, _ = fmt.Fprintf(os.Stderr, diff)
+				exitCode = 1
+			} else {
+				fmt.Print("Check successful!")
+			}
+		} else {
+			headache.Run(configuration)
+			if err := executionTracker.TrackExecution(configFile); err != nil {
+				log.Printf("headache warning, could not save current execution, see below for details\n\t%v\n", err)
+			}
 		}
 	} else {
 		log.Print("No files to process")
 	}
 
 	log.Print("Done!")
+	os.Exit(exitCode)
 }
 
 func loadConfiguration(configFile *string, configLoader *ConfigurationFileLoader, configResolver *ConfigurationResolver) *ChangeSet {
