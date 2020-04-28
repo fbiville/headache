@@ -18,13 +18,14 @@ package core_test
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"sort"
+	"strings"
+
 	. "github.com/fbiville/headache/internal/pkg/core"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"io/ioutil"
-	"sort"
-	"strings"
 )
 
 var _ = Describe("Comment styles", func() {
@@ -58,6 +59,7 @@ var _ = Describe("Comment styles", func() {
 			"SlashSlash",
 			"SlashStar",
 			"SlashStarStar",
+			"XML",
 		}))
 		Expect(lowerAll(catalog)).To(Equal(sortedStylesInSchema("../../../docs/schema.json")),
 			"Expected all declared styles to be included in JSON schema")
