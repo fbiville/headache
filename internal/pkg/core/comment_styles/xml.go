@@ -28,5 +28,5 @@ func (XML) GetString() string {
 	return ""
 }
 func (XML) GetClosingString() string {
-	return "bbXMLbb"
+	return "-->"
 }
