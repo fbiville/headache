@@ -17,9 +17,9 @@
 package core
 
 import (
-	tpl "html/template"
 	"regexp"
 	"strings"
+	tpl "text/template"
 )
 
 type ParsedTemplate struct { // visible for testing
