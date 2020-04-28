@@ -22,7 +22,7 @@ func (XML) GetName() string {
 	return "XML"
 }
 func (XML) GetOpeningString() string {
-	return "aaXMLaa"
+	return "<--"
 }
 func (XML) GetString() string {
 	return ""
