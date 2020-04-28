@@ -18,14 +18,15 @@ package core
 
 import (
 	"fmt"
-	"github.com/fbiville/headache/internal/pkg/fs"
-	"github.com/fbiville/headache/internal/pkg/vcs"
-	tpl "html/template"
 	"log"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	tpl "text/template"
+
+	"github.com/fbiville/headache/internal/pkg/fs"
+	"github.com/fbiville/headache/internal/pkg/vcs"
 )
 
 type Headache struct {

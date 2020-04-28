@@ -17,9 +17,10 @@
 package core
 
 import (
-	styles "github.com/fbiville/headache/internal/pkg/core/comment_styles"
 	"log"
 	"strings"
+
+	styles "github.com/fbiville/headache/internal/pkg/core/comment_styles"
 )
 
 type CommentStyle interface {
@@ -53,6 +54,7 @@ func SupportedStyles() []CommentStyle {
 		styles.SemiColon{},
 		styles.Rem{},
 		styles.SlashStarStar{},
+		styles.Xml{},
 	}
 }
 

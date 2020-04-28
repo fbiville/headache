@@ -18,10 +18,10 @@ package core
 
 import (
 	"fmt"
-	tpl "html/template"
 	"regexp"
 	"sort"
 	"strings"
+	tpl "text/template"
 )
 
 func ComputeHeaderDetectionRegex(lines []string, data map[string]string) (string, error) {

@@ -20,7 +20,8 @@
         "dashdash",
         "semicolon",
         "rem",
-        "slashstarstar"
+        "slashstarstar",
+        "xml"
       ]
     },
     "includes": {
