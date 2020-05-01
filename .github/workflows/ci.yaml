@@ -10,11 +10,6 @@ jobs:
       - uses: actions/setup-go@v1
         with:
           go-version: '1.13'
-      - name: Install mockery
-        run: |
-          cd $(mktemp -d)
-          go get github.com/vektra/mockery/.../
-          echo "::add-path::$(go env GOPATH)/bin"
       - name: Check mock sync
         run: |
           make gen-mocks
