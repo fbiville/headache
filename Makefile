@@ -3,6 +3,7 @@
 OUTPUT = ./headache
 GO_SOURCES = $(shell find . -type f -name '*.go')
 GOBIN ?= $(shell go env GOPATH)/bin
+MOCKERY=go run github.com/vektra/mockery/cmd/mockery
 
 .DEFAULT_GOAL := help
 
@@ -13,18 +14,15 @@ build: $(OUTPUT) ## build the project binary
 test: ## run the project tests
 	GO111MODULE=on go test -v ./...
 
-check-mockery: ## check whether mockery is installed
-	@which mockery > /dev/null || ((echo 'mockery not found, please run: "cd `mktemp -d` && go get -u github.com/vektra/mockery/.../ && cd -"') && false)
-
-gen-mocks: check-mockery ## generate the project mocks
-	GO111MODULE=on mockery -output internal/pkg/helper_mocks -outpkg helper_mocks -dir internal/pkg/helper -name Clock \
-	GO111MODULE=on mockery -output internal/pkg/vcs_mocks -outpkg vcs_mocks -dir internal/pkg/vcs -name Vcs \
-	GO111MODULE=on mockery -output internal/pkg/vcs_mocks -outpkg vcs_mocks -dir internal/pkg/vcs -name VersioningClient \
-	GO111MODULE=on mockery -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name FileWriter \
-	GO111MODULE=on mockery -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name FileReader \
-	GO111MODULE=on mockery -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name File \
-	GO111MODULE=on mockery -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name PathMatcher \
-	GO111MODULE=on mockery -output internal/pkg/core_mocks -outpkg core_mocks -dir internal/pkg/core -name ExecutionTracker
+gen-mocks: ## generate the project mocks
+	GO111MODULE=on $(MOCKERY) -output internal/pkg/helper_mocks -outpkg helper_mocks -dir internal/pkg/helper -name Clock \
+	GO111MODULE=on $(MOCKERY) -output internal/pkg/vcs_mocks -outpkg vcs_mocks -dir internal/pkg/vcs -name Vcs \
+	GO111MODULE=on $(MOCKERY) -output internal/pkg/vcs_mocks -outpkg vcs_mocks -dir internal/pkg/vcs -name VersioningClient \
+	GO111MODULE=on $(MOCKERY) -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name FileWriter \
+	GO111MODULE=on $(MOCKERY) -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name FileReader \
+	GO111MODULE=on $(MOCKERY) -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name File \
+	GO111MODULE=on $(MOCKERY) -output internal/pkg/fs_mocks -outpkg fs_mocks -dir internal/pkg/fs -name PathMatcher \
+	GO111MODULE=on $(MOCKERY) -output internal/pkg/core_mocks -outpkg core_mocks -dir internal/pkg/core -name ExecutionTracker
 
 install: build ## copy the binary to GOBIN
 	cp $(OUTPUT) $(GOBIN)
