@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/mattn/go-zglob v0.0.1
-	github.com/onsi/ginkgo v1.12.1
+	github.com/onsi/ginkgo v1.12.2
 	github.com/onsi/gomega v1.10.1
 	github.com/stretchr/testify v1.5.1
 	github.com/vektra/mockery v0.0.0-20181123154057-e78b021dcbb5
