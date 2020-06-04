@@ -3,7 +3,7 @@ module github.com/fbiville/headache
 go 1.12
 
 require (
-	github.com/mattn/go-zglob v0.0.1
+	github.com/mattn/go-zglob v0.0.2
 	github.com/onsi/ginkgo v1.12.3
 	github.com/onsi/gomega v1.10.1
 	github.com/stretchr/testify v1.6.0
