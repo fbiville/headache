@@ -55,6 +55,7 @@ func SupportedStyles() []CommentStyle {
 		styles.Rem{},
 		styles.SlashStarStar{},
 		styles.Xml{},
+		styles.SingleQuote{},
 	}
 }
 

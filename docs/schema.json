@@ -21,7 +21,8 @@
         "semicolon",
         "rem",
         "slashstarstar",
-        "xml"
+        "xml",
+        "singlequote"
       ]
     },
     "includes": {
