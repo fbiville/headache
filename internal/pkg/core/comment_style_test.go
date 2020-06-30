@@ -47,6 +47,7 @@ var _ = Describe("Comment styles", func() {
 		Entry("matches REM comment style", "REM", "", "", "REM "),
 		Entry("matches SlashStarStar comment style", "SlashStarStar", "/**", " */", " * "),
 		Entry("matches XML comment style", "XML", "<!--", "-->", ""),
+		Entry("matches SingleQuote comment style", "SingleQuote", "", "", "' "),
 	)
 
 	It("include only the following", func() {
@@ -57,6 +58,7 @@ var _ = Describe("Comment styles", func() {
 			"Hash",
 			"REM",
 			"SemiColon",
+			"SingleQuote",
 			"SlashSlash",
 			"SlashStar",
 			"SlashStarStar",
