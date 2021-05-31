@@ -22,7 +22,8 @@
         "rem",
         "slashstarstar",
         "xml",
-        "singlequote"
+        "singlequote",
+        "percent"
       ]
     },
     "includes": {
